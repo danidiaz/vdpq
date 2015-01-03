@@ -1,0 +1,35 @@
+Desired features:
+    - queries and targets specified in a JSON file.
+    - concurrent queries (but allow for throttling).
+    - show progress report on stderr (this is important! there's nothing worse
+      than the program hanging and not being able to know which query is the
+      culprit).
+    - clean handling of Ctrl-C (I handled this badly in the Python version)
+    - allow pretty-printing of queries for human consumption.
+    - list of queries is ordered, maybe not for execution but for display
+      purposes.
+    - allow for both ordered and unordered result sets.
+    - allow displaying the concatenated list of results to stdout.
+    - allow using external tool to diff query results. 
+
+    - (later...) allow for different types of queries beyond REST queries.
+
+Implicit parameters:
+    - "plan.js" in the current folder. --plan option for other folders.
+    - for comparison operations, the "baseline" folder is used, but there
+      should be an option to change it with --baseline.
+    
+Possible commands
+    - vdqp example 
+        - writes and example plan file to stdout
+    - vdpq query destfolder
+        - perform a query run and write the results to destfolder   
+    - vdpq report folder
+        - summarize the results of a query run, showing failed queries in
+          particular.
+    - vdpq cat folder
+    - vdqp collate folder --baseline baseline
+    - vdpq diff folder queryname --baseline baseline
+        - diff with external tool
+    - vdpq pretty --plan someotherplanfile
+
