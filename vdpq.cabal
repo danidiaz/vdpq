@@ -40,7 +40,8 @@ Executable vdpq
         semigroups >= 0.15 && < 0.16,
         conceit >= 0.2.1.0 && < 0.3.0.0,
         contravariant >= 1.2,
-        foldl >= 1.0.7
+        foldl >= 1.0.7,
+        optparse-applicative <= 0.12     
 
 Source-repository head
     type:     git
