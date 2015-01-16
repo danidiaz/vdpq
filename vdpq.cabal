@@ -44,7 +44,8 @@ Executable vdpq
         optparse-applicative <= 0.12,
         async <= 2.0.2,
         base-prelude >= 0.1.14,
-        mtl-prelude >= 2.0.1    
+        mtl-prelude >= 2.0.1,
+        aeson >= 0.8.0.2
 
 Source-repository head
     type:     git

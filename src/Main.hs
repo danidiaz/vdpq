@@ -37,5 +37,5 @@ theParser = (O.subparser . mconcat . fmap command')
 
 main :: IO ()
 main = do
-    O.execParser (info' theParser "This is the main prog desc")
-    print "" 
+    spec <- O.execParser (info' theParser "This is the main prog desc")
+    print spec
