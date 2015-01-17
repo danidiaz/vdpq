@@ -1,11 +1,17 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveFunctor #-}
 
 module Main (main) where
 
 import BasePrelude
 import MTLPrelude
 
+import Data.Map
+import Data.Aeson
 import qualified Options.Applicative as O
+
+import GHC.Generics
 
 data Command = 
     Example
@@ -17,6 +23,42 @@ data Command =
   | Pretty 
   deriving (Show)   
 
+data Plan = Plan 
+    {
+        targets :: Targets
+    ,   queries :: [Named Query]
+    } 
+    deriving (Show,Generic)
+
+instance FromJSON Plan
+instance ToJSON Plan
+
+data Targets = Targets
+    {            
+        vdpTargets :: Map String String
+    } 
+    deriving (Show,Generic)
+
+instance FromJSON Targets
+instance ToJSON Targets
+
+data Named v = Named
+    { 
+        name :: String
+    ,   named :: v
+    } 
+    deriving (Show,Generic,Functor)
+
+instance FromJSON v => FromJSON (Named v)
+instance ToJSON v => ToJSON (Named v)
+
+type Query = String
+
+example :: Plan
+example = Plan 
+    (Targets 
+        (Data.Map.fromList [("vdp","foo")])) 
+    [Named "q1" "select * from foo"]
 
 parserInfo' :: O.ParserInfo Command  
 parserInfo' = info' parser' "This is the main prog desc"
@@ -37,10 +79,12 @@ parserInfo' = info' parser' "This is the main prog desc"
         (O.helper <*> p) 
         (O.fullDesc <> O.progDesc desc)
             
-    command' (name,p,desc) = O.command name (info' p desc)
+    command' (cname,p,desc) = O.command cname (info' p desc)
 
 
 main :: IO ()
 main = do
-    spec <- O.execParser parserInfo'
-    print spec
+    plan <- O.execParser parserInfo'
+    case plan of
+        Example -> putStrLn (show example)
+        _ -> putStrLn "foo"
