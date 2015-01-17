@@ -11,6 +11,12 @@ import MTLPrelude
 
 import Data.Map
 import Data.Aeson
+
+import Pipes
+import qualified Pipes.ByteString as B
+import Pipes.Aeson (encodeObject)
+
+
 import qualified Options.Applicative as O
 
 import GHC.Generics
