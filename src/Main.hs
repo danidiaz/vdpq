@@ -1,6 +1,8 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveFunctor #-}
+--{-# LANGUAGE OverloadedLists #-}
+--{-# LANGUAGE TypeFamilies #-}
 
 module Main (main) where
 
@@ -12,6 +14,7 @@ import Data.Aeson
 import qualified Options.Applicative as O
 
 import GHC.Generics
+--import GHC.Exts (IsList(..))
 
 data Command = 
     Example
