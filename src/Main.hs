@@ -9,16 +9,19 @@ module Main (main) where
 import BasePrelude
 import MTLPrelude
 
+import Data.Char
 import Data.Map
 import Data.Aeson
+import Data.Aeson.Types
 import Data.Aeson.Encode.Pretty
+
+import Control.Lens
 
 import qualified Data.ByteString.Lazy as BL
 
 import Pipes
 --import qualified Pipes.ByteString as B
 import Pipes.Aeson (encodeObject)
-
 
 import qualified Options.Applicative as O
 
@@ -43,16 +46,31 @@ data Plan = Plan
     deriving (Show,Generic)
 
 instance FromJSON Plan
+
 instance ToJSON Plan
 
 data Targets = Targets
     {            
-        vdpTargets :: Map String String
+        vdpTargets :: Map String TargetVDP
     } 
     deriving (Show,Generic)
 
 instance FromJSON Targets
+
 instance ToJSON Targets
+
+data TargetVDP = TargetVDP 
+    { host :: String
+    , port :: Int
+    , login :: String
+    , password :: String
+    , database :: String 
+    }
+    deriving (Show,Generic)
+
+instance FromJSON TargetVDP
+
+instance ToJSON TargetVDP
 
 data Named v = Named
     { 
@@ -62,21 +80,49 @@ data Named v = Named
     deriving (Show,Generic,Functor)
 
 instance FromJSON v => FromJSON (Named v)
+
 instance ToJSON v => ToJSON (Named v)
 
-type Query = String
+data Query =
+    VdpQuery VdpQuery'
+  | Foo String
+    deriving (Show,Generic)
+
+aesonOptions :: Options
+aesonOptions = defaultOptions 
+    { sumEncoding = ObjectWithSingleField 
+    , constructorTagModifier = over _head toLower
+    , omitNothingFields = True
+    }
+
+instance FromJSON Query where
+    parseJSON = genericParseJSON aesonOptions
+
+instance ToJSON Query where
+    toJSON = genericToJSON aesonOptions
+
+
+data VdpQuery' = VdpQuery'
+    {
+        targetVDP :: String         
+    ,   viewName :: String
+    ,   whereClause :: Maybe String
+    }
+    deriving (Show,Generic)
+
+instance FromJSON VdpQuery' where
+    parseJSON = genericParseJSON aesonOptions
+
+instance ToJSON VdpQuery' where
+    toJSON = genericToJSON aesonOptions
 
 example :: Plan
 example = Plan 
     (Targets 
-        (Data.Map.fromList [("vdp","foo")])) 
-    [Named "q1" "select * from foo"]
-
---exampleObject :: Object
---exampleObject = case toJSON example of 
---    Object o -> o
---    _ -> error "should never happen"
-
+        (Data.Map.fromList 
+            [("vdp1", TargetVDP "localhost" 9999 "admin" "admin" "admin")])) 
+    [ Named "q1" (VdpQuery (VdpQuery' "vdp1" "fooview" (Just "where 1 = 3")))
+    , Named "q2" (VdpQuery (VdpQuery' "vdp1" "barview" Nothing)) ]
 
 parserInfo' :: O.ParserInfo Command  
 parserInfo' = info' parser' "This is the main prog desc"
@@ -98,7 +144,6 @@ parserInfo' = info' parser' "This is the main prog desc"
         (O.fullDesc <> O.progDesc desc)
             
     command' (cname,p,desc) = O.command cname (info' p desc)
-
 
 main :: IO ()
 main = do
