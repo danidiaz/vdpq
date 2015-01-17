@@ -11,9 +11,12 @@ import MTLPrelude
 
 import Data.Map
 import Data.Aeson
+import Data.Aeson.Encode.Pretty
+
+import qualified Data.ByteString.Lazy as BL
 
 import Pipes
-import qualified Pipes.ByteString as B
+--import qualified Pipes.ByteString as B
 import Pipes.Aeson (encodeObject)
 
 
@@ -54,7 +57,7 @@ instance ToJSON Targets
 data Named v = Named
     { 
         name :: String
-    ,   named :: v
+    ,   value :: v
     } 
     deriving (Show,Generic,Functor)
 
@@ -68,6 +71,12 @@ example = Plan
     (Targets 
         (Data.Map.fromList [("vdp","foo")])) 
     [Named "q1" "select * from foo"]
+
+--exampleObject :: Object
+--exampleObject = case toJSON example of 
+--    Object o -> o
+--    _ -> error "should never happen"
+
 
 parserInfo' :: O.ParserInfo Command  
 parserInfo' = info' parser' "This is the main prog desc"
@@ -95,5 +104,5 @@ main :: IO ()
 main = do
     plan <- O.execParser parserInfo'
     case plan of
-        Example -> putStrLn (show example)
+        Example -> BL.putStr (encodePretty example) 
         _ -> putStrLn "foo"
