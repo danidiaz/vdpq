@@ -28,6 +28,8 @@ import qualified Options.Applicative as O
 import GHC.Generics
 --import GHC.Exts (IsList(..))
 
+import VDPQ.Plan
+
 data Command = 
     Example
   | Query
