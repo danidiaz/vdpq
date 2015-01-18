@@ -60,7 +60,7 @@ parserInfo' = info' parser' "This is the main prog desc"
   where
     parser' :: O.Parser Command 
     parser' = (O.subparser . foldMap command') 
-        [ ("examplePlan", pure Example, "Generate examplePlan plan")
+        [ ("example", pure Example, "Generate examplePlan plan")
         , ("query", queryP, "Perform queries and save the responses") 
         , ("report", pure Report, "Report on responses") 
         , ("cat", pure Cat, "Show set of responses") 
