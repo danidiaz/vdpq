@@ -1,10 +1,12 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module VDPQ.Plan where
 
 import Data.Char
-import Data.Map
+import Data.List (isPrefixOf)
+import Data.Map (Map)
 import Data.Aeson
 import Data.Aeson.Types
 
@@ -14,60 +16,48 @@ import GHC.Generics
 
 data Plan = Plan 
     {
-        targets :: Targets
-    ,   queries :: [Named Query]
+        _targets :: Targets
+    ,   _queries :: Map String Query
     } 
     deriving (Show,Generic)
 
-instance FromJSON Plan
+instance FromJSON Plan where
+    parseJSON = genericParseJSON aesonOptions
 
-instance ToJSON Plan
+instance ToJSON Plan where
+    toJSON = genericToJSON aesonOptions
 
 data Targets = Targets
     {            
-        vdpTargets :: Map String TargetVDP
+        _vdpTargets :: Map String TargetVDP
     } 
     deriving (Show,Generic)
 
-instance FromJSON Targets
+instance FromJSON Targets where
+    parseJSON = genericParseJSON aesonOptions
 
-instance ToJSON Targets
+instance ToJSON Targets where
+    toJSON = genericToJSON aesonOptions
 
 data TargetVDP = TargetVDP 
-    { host :: String
-    , port :: Int
-    , login :: String
-    , password :: String
-    , database :: String 
+    { _host :: String
+    , _port :: Int
+    , _login :: String
+    , _password :: String
+    , _database :: String 
     }
     deriving (Show,Generic)
 
-instance FromJSON TargetVDP
+instance FromJSON TargetVDP where
+    parseJSON = genericParseJSON aesonOptions
 
-instance ToJSON TargetVDP
-
-data Named v = Named
-    { 
-        name :: String
-    ,   value :: v
-    } 
-    deriving (Show,Generic,Functor)
-
-instance FromJSON v => FromJSON (Named v)
-
-instance ToJSON v => ToJSON (Named v)
+instance ToJSON TargetVDP where
+    toJSON = genericToJSON aesonOptions
 
 data Query =
-    VdpQuery VdpQuery'
+    VDPQuery VDPQuery'
   | Foo String
     deriving (Show,Generic)
-
-aesonOptions :: Options
-aesonOptions = defaultOptions 
-    { sumEncoding = ObjectWithSingleField 
-    , constructorTagModifier = over _head toLower
-    , omitNothingFields = True
-    }
 
 instance FromJSON Query where
     parseJSON = genericParseJSON aesonOptions
@@ -75,17 +65,35 @@ instance FromJSON Query where
 instance ToJSON Query where
     toJSON = genericToJSON aesonOptions
 
-
-data VdpQuery' = VdpQuery'
+data VDPQuery' = VDPQuery'
     {
-        targetVDP :: String         
-    ,   viewName :: String
-    ,   whereClause :: Maybe String
+        _targetVDP :: String         
+    ,   _viewName :: String
+    ,   _whereClause :: Maybe String
     }
     deriving (Show,Generic)
 
-instance FromJSON VdpQuery' where
+instance FromJSON VDPQuery' where
     parseJSON = genericParseJSON aesonOptions
 
-instance ToJSON VdpQuery' where
+instance ToJSON VDPQuery' where
     toJSON = genericToJSON aesonOptions
+
+aesonOptions :: Options
+aesonOptions = defaultOptions 
+    { sumEncoding = ObjectWithSingleField 
+    , fieldLabelModifier = overload . tail
+    , constructorTagModifier = overload 
+    , omitNothingFields = True
+    }
+  where
+      overload name = head (filter (isMatch name) overloaded ++ [name]) 
+      isMatch name prefix = isPrefixOf (fmap toLower prefix) (fmap toLower name)
+
+      overloaded = ["VDP"]
+
+$(makeLenses ''Plan)
+$(makeLenses ''Targets)
+$(makeLenses ''TargetVDP)
+$(makePrisms ''Query)
+$(makeLenses ''VDPQuery')

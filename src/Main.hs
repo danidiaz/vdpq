@@ -40,14 +40,14 @@ data Command =
   | Pretty 
   deriving (Show)   
 
-
 example :: Plan
 example = Plan 
     (Targets 
         (Data.Map.fromList 
             [("vdp1", TargetVDP "localhost" 9999 "admin" "admin" "admin")])) 
-    [ Named "q1" (VdpQuery (VdpQuery' "vdp1" "fooview" (Just "where 1 = 3")))
-    , Named "q2" (VdpQuery (VdpQuery' "vdp1" "barview" Nothing)) ]
+    (Data.Map.fromList
+        [ ( "q1", VDPQuery (VDPQuery' "vdp1" "fooview" (Just "where 1 = 3")))
+        , ( "q2", VDPQuery (VDPQuery' "vdp1" "barview" Nothing)) ])
 
 parserInfo' :: O.ParserInfo Command  
 parserInfo' = info' parser' "This is the main prog desc"
