@@ -35,8 +35,6 @@ import System.FilePath
 
 import VDPQ.Plan
 
-try' :: (Functor m, MonadIO m) => IO a -> ExceptT String m a
-try' action = withExceptT show (ExceptT (liftIO (withAsync action waitCatch)))
 
 data Command = 
     Example
@@ -47,16 +45,6 @@ data Command =
   | Diff
   | Pretty 
   deriving (Show)   
-
-loadJSON :: FromJSON a => FilePath -> ExceptT String IO a
-loadJSON path = 
-    withExceptT ("Loading JSON: "++) $ do
-        bytes <- try' (B.readFile path)
-        js <- ExceptT (return (A.parseOnly json bytes))
-        ExceptT (return (r2e (fromJSON js)))
-  where 
-    r2e (Error msg) = Left msg
-    r2e (Success a) = Right a
 
 examplePlan :: Plan
 examplePlan = Plan 
@@ -106,6 +94,18 @@ parserInfo' = info' parser' "This is the main prog desc"
     command' (cname,p,desc) = O.command cname (info' p desc)
 
 
+loadJSON :: FromJSON a => FilePath -> ExceptT String IO a
+loadJSON path = 
+    withExceptT ("Loading JSON: "++) $ do
+        bytes <- try' (B.readFile path)
+        js <- ExceptT (return (A.parseOnly json bytes))
+        ExceptT (return (r2e (fromJSON js)))
+  where 
+    r2e (Error msg) = Left msg
+    r2e (Success a) = Right a
+
+try' :: (Functor m, MonadIO m) => IO a -> ExceptT String m a
+try' action = withExceptT show (ExceptT (liftIO (withAsync action waitCatch)))
 
 main :: IO ()
 main = do
