@@ -52,8 +52,8 @@ examplePlan = Plan
         (Data.Map.fromList 
             [("vdp1", TargetVDP "localhost" 9999 "admin" "admin" "admin")])) 
     (Data.Map.fromList
-        [ ("q1", VDPQuery (VDPQuery' "vdp1" "fooview" (Just "where 1 = 3")))
-        , ("q2", VDPQuery (VDPQuery' "vdp1" "barview" Nothing)) ])
+        [ ("q1", VDPQuery (VDPQuery' "vdp1" "fooview" (Just "where 1 = 3") Nothing))
+        , ("q2", VDPQuery (VDPQuery' "vdp1" "barview" Nothing Nothing)) ])
 
 parserInfo' :: O.ParserInfo Command  
 parserInfo' = info' parser' "This is the main prog desc"
