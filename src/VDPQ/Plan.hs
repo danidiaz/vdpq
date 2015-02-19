@@ -8,8 +8,6 @@
 
 module VDPQ.Plan where
 
-import Data.Char
-import Data.List (isPrefixOf)
 import Data.Map (Map)
 import Data.Aeson
 import Data.Aeson.Types

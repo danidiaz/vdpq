@@ -35,6 +35,8 @@ import System.FilePath
 
 import VDPQ.Plan
 
+vdpQueryDefault :: VDPServer -> VDPQuery Maybe -> VDPQuery Identity 
+vdpQueryDefault dt = over targetVDP (Identity . maybe dt id)
 
 data Command = 
     Example
