@@ -32,6 +32,7 @@ import GHC.Generics
 --import GHC.Exts (IsList(..))
 
 import System.FilePath 
+import System.Directory
 
 import VDPQ.Plan
 
@@ -101,11 +102,11 @@ parserInfo' = info' parser' "This is the main prog desc"
 loadJSON :: FromJSON a => FilePath -> ExceptT String IO a
 loadJSON path = 
     withExceptT ("Loading JSON: "++) $ do
-        bytes <- tryA (B.readFile path)
+        bytes <- tryAsync (B.readFile path)
         ExceptT (return (eitherDecode (BL.fromStrict bytes)))
 
-tryA :: (Functor m, MonadIO m) => IO a -> ExceptT String m a
-tryA action = withExceptT show (ExceptT (liftIO (withAsync action waitCatch)))
+tryAsync :: (Functor m, MonadIO m) => IO a -> ExceptT String m a
+tryAsync action = withExceptT show (ExceptT (liftIO (withAsync action waitCatch)))
 
 main :: IO ()
 main = do
@@ -113,6 +114,11 @@ main = do
     case plan of
         Example -> BL.putStr (encodePretty examplePlan) 
         Query folder planfile -> do
-            plan :: Either String Plan  <- runExceptT (loadJSON planfile)
-            print plan
+            result <- runExceptT $ do
+                plan :: Plan  <- loadJSON planfile        
+                tryAsync (createDirectory folder)
+            --mapMOf_ _Left putStrLn result
+            case result of
+                Left msg -> putStrLn msg
+                Right _ -> return ()
         _ -> putStrLn "foo"
