@@ -80,6 +80,5 @@ instance ToJSON Plan where
 
 $(makeLenses ''Plan)
 
-
 vdpQueryDefault :: VDPServer -> VDPQuery Maybe -> VDPQuery Identity 
 vdpQueryDefault dt = over targetVDP (Identity . maybe dt id)

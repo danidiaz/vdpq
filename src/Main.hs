@@ -12,7 +12,7 @@ import MTLPrelude
 
 import Data.Char
 import Data.Map
-import qualified Data.Attoparsec as A
+--import qualified Data.Attoparsec as A
 import Data.Aeson
 import Data.Aeson.Types
 import Data.Aeson.Encode.Pretty
@@ -99,15 +99,11 @@ parserInfo' = info' parser' "This is the main prog desc"
 loadJSON :: FromJSON a => FilePath -> ExceptT String IO a
 loadJSON path = 
     withExceptT ("Loading JSON: "++) $ do
-        bytes <- try' (B.readFile path)
-        js <- ExceptT (return (A.parseOnly json bytes))
-        ExceptT (return (r2e (fromJSON js)))
-  where 
-    r2e (Error msg) = Left msg
-    r2e (Success a) = Right a
+        bytes <- tryA (B.readFile path)
+        ExceptT (return (eitherDecode (BL.fromStrict bytes)))
 
-try' :: (Functor m, MonadIO m) => IO a -> ExceptT String m a
-try' action = withExceptT show (ExceptT (liftIO (withAsync action waitCatch)))
+tryA :: (Functor m, MonadIO m) => IO a -> ExceptT String m a
+tryA action = withExceptT show (ExceptT (liftIO (withAsync action waitCatch)))
 
 main :: IO ()
 main = do
