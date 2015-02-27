@@ -39,37 +39,13 @@ data Command =
   | Pretty 
   deriving (Show)   
 
-defaultVDPServer :: VDPServer
-defaultVDPServer = VDPServer "localhost" 9999 "admin" "admin" "admin"
-
-defaultTemplateName :: String
-defaultTemplateName = "_template"
-
-examplePlan :: Plan
-examplePlan = Plan 
-    (Data.Map.fromList
-        [ (defaultTemplateName, VDPQuery "fooview" (Just "where 1 = 3") (Just defaultVDPServer))
-        , ("q1", VDPQuery "fooview" (Just "where 1 = 3") Nothing)
-        , ("q2", VDPQuery "barview" Nothing Nothing) 
-        ]
-    )
-
-vdpQueryDefault :: VDPServer -> VDPQuery Maybe -> VDPQuery Identity 
-vdpQueryDefault dt = over targetVDP (Identity . maybe dt id)
-
-fillVDPTargets :: Map String (VDPQuery Maybe) -> Map String (VDPQuery Identity) 
-fillVDPTargets qs =
-    let altServer = preview (ix defaultTemplateName.targetVDP.folded) qs 
-        defaultVDPServer' = maybe defaultVDPServer id altServer
-        qs' = filterWithKey (\k _ -> head k == '_') qs
-    in  fmap (vdpQueryDefault defaultVDPServer') qs'
 
 parserInfo' :: O.ParserInfo Command  
 parserInfo' = info' parser' "This is the main prog desc"
   where
     parser' :: O.Parser Command 
     parser' = (O.subparser . foldMap command') 
-        [ ("example", pure Example, "Generate examplePlan plan")
+        [ ("example", pure Example, "Generate example plan")
         , ("query", queryP, "Perform queries and save the responses") 
         , ("report", pure Report, "Report on responses") 
         , ("cat", pure Cat, "Show set of responses") 
@@ -102,15 +78,6 @@ parserInfo' = info' parser' "This is the main prog desc"
     command' (cname,p,desc) = O.command cname (info' p desc)
 
 
-loadJSON :: FromJSON a => FilePath -> ExceptT String IO a
-loadJSON path = 
-    withExceptT ("Loading JSON: "++) $ do
-        bytes <- tryAsync (B.readFile path)
-        ExceptT (return (eitherDecode (BL.fromStrict bytes)))
-
-tryAsync :: (Functor m, MonadIO m) => IO a -> ExceptT String m a
-tryAsync action = withExceptT show (ExceptT (liftIO (withAsync action waitCatch)))
-
 main :: IO ()
 main = do
     plan <- O.execParser parserInfo'
@@ -118,7 +85,7 @@ main = do
         Example -> BL.putStr (encodePretty examplePlan) 
         Query folder planfile -> do
             result <- runExceptT $ do
-                plan :: Plan <- loadJSON planfile        
+                plan <- defaultFillVDPTargets <$> loadJSON planfile
                 tryAsync (createDirectory folder)
             --mapMOf_ _Left putStrLn result
             case result of
