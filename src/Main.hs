@@ -36,7 +36,7 @@ data Command =
   | Cat
   | Collate
   | Diff
-  | Pretty 
+  | Pretty FilePath
   deriving (Show)   
 
 defaultPlanFile :: String
@@ -47,16 +47,17 @@ parserInfo' = info' parser' "This is the main prog desc"
   where
     parser' :: O.Parser Command 
     parser' = (O.subparser . foldMap command') 
-        [ ("example", pure Example, "Generate example plan")
-        , ("query", queryP, "Perform queries and save the responses") 
-        , ("report", pure Report, "Report on responses") 
-        , ("cat", pure Cat, "Show set of responses") 
-        , ("collate",pure Collate, "Collate two sets of responses") 
-        , ("diff", pure Diff, "Compare two responses") 
-        , ("pretty", pure Pretty, "Print queries") 
+        [ ("example", "Generate example plan", pure Example)
+        , ("query", "Perform queries and save the responses", queryP)
+        , ("report", "Report on responses", pure Report) 
+        , ("cat", "Show set of responses", pure Cat) 
+        , ("collate", "Collate two sets of responses", pure Collate) 
+        , ("diff", "Compare two responses", pure Diff) 
+        , ("pretty", "Print queries", prettyP) 
         ] 
 
     queryP = Query <$> destFolderArg <*> planOpt
+    prettyP = Pretty <$> planOpt
 
     destFolderArg = O.strArgument 
         (mconcat 
@@ -76,7 +77,8 @@ parserInfo' = info' parser' "This is the main prog desc"
         (O.helper <*> p) 
         (O.fullDesc <> O.progDesc desc)
             
-    command' (cname,p,desc) = O.command cname (info' p desc)
+    command' (cmdName,desc,parser) = 
+        O.command cmdName (info' parser desc)
 
 
 main :: IO ()
