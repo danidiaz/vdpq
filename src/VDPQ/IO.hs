@@ -1,8 +1,11 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+
 module VDPQ.IO 
     (
         module VDPQ
-    ,   loadJSON
     ,   tryAsync
+    ,   loadJSON
+    ,   loadPlan
     ) where
 
 import VDPQ
@@ -32,3 +35,5 @@ loadJSON path =
         bytes <- tryAsync (B.readFile path)
         ExceptT (return (eitherDecode (BL.fromStrict bytes)))
 
+loadPlan :: FilePath -> ExceptT String IO Plan
+loadPlan  = fmap (id::Plan -> Plan) . loadJSON 
