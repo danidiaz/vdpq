@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module VDPQ 
     (
         module VDPQ.Types
@@ -12,8 +13,11 @@ module VDPQ
 import VDPQ.Types
 
 import Data.Maybe
+import qualified Data.Text as T
 import Data.Map
 import Control.Lens
+
+import Formatting
 
 defaultVDPServer :: VDPServer
 defaultVDPServer = VDPServer "localhost" 9999 "admin" "admin" "admin"
@@ -37,16 +41,39 @@ fillVDPTargets :: VDPServer
                -> String
                -> Map String (VDPQuery Maybe) 
                -> Map String (VDPQuery Identity) 
-fillVDPTargets fallback templateName qs =
-    let template = preview (ix templateName.targetVDP.folded) qs 
-        server' = fromMaybe fallback template
+fillVDPTargets fallbackServer templateName qs =
+    let template = preview (ix templateName . targetVDP . folded) qs 
+        server = fromMaybe fallbackServer template
         qs' = filterWithKey (\k _ -> head k == '_') qs
-    in  fmap (vdpQueryDefault server') qs'
+    in  fmap (vdpQueryDefault server) qs'
 
 defaultFillVDPTargets :: Map String (VDPQuery Maybe) 
                       -> Map String (VDPQuery Identity) 
 defaultFillVDPTargets =  fillVDPTargets defaultVDPServer defaultTemplateName
 
+buildVDPBaseURL :: VDPQuery Identity -> T.Text  
+buildVDPBaseURL q = sformat 
+    ("http://" % string % ":" % int %
+        "/denodo-restfulws/" % string % "/views/" % string % "/" 
+    ) 
+    (_vdpHost server)
+    (_vdpPort server)
+    (_vdpDatabase server)
+    (_viewName q)
+  where
+    server = (runIdentity . _targetVDP) q
 
+buildVDPSchemaURL :: VDPQuery Identity -> T.Text  
+buildVDPSchemaURL q = sformat 
+    (stext % "$schema?$format=JSON")
+    (buildVDPBaseURL q)
+
+buildVDPURL :: VDPQuery Identity -> T.Text  
+buildVDPURL q = sformat
+    (stext % "$schema?$format=JSON&$displayRESTfulReferences=false" % stext)
+    (buildVDPBaseURL q)
+    (maybe "" formatWhere (_whereClause q))
+  where
+    formatWhere = sformat ("&$filter=" % string)
 
 
