@@ -39,6 +39,8 @@ data Command =
   | Pretty 
   deriving (Show)   
 
+defaultPlanFile :: String
+defaultPlanFile = "plan.json"
 
 parserInfo' :: O.ParserInfo Command  
 parserInfo' = info' parser' "This is the main prog desc"
@@ -54,21 +56,20 @@ parserInfo' = info' parser' "This is the main prog desc"
         , ("pretty", pure Pretty, "Print queries") 
         ] 
 
-    queryP = Query <$> destFolderP <*> planP
+    queryP = Query <$> destFolderArg <*> planOpt
 
-    destFolderP = O.strArgument 
+    destFolderArg = O.strArgument 
         (mconcat 
             [ O.help "Destination folder for the results."
             , O.metavar "FOLDER" ])
 
-    planP = 
-        O.strOption
-            (mconcat 
-                [ O.help "Query plan file."
-                , O.value "plan.json"
-                , O.showDefault
-                , O.long "plan"
-                , O.metavar "PLAN" ])
+    planOpt = O.strOption
+        (mconcat 
+            [ O.help "Query plan file."
+            , O.value defaultPlanFile
+            , O.showDefault
+            , O.long "plan"
+            , O.metavar "PLAN" ])
 
     info' :: O.Parser a -> String -> O.ParserInfo a
     info' p desc = O.info 

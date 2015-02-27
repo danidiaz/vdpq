@@ -37,9 +37,7 @@ loadJSON path =
 
 
 loadPlan :: FilePath -> ExceptT String IO Plan
-loadPlan  = fmap (id::Plan -> Plan) . loadJSON 
-
-
+loadPlan  = loadJSON 
 
 
 runVDPQuery :: VDPQuery Identity -> ExceptT String IO (Value,Value)
