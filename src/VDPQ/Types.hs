@@ -6,12 +6,11 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE StandaloneDeriving #-}
 
-module VDPQ.Plan where
+module VDPQ.Types where
 
 import Data.Map (Map)
 import Data.Aeson
 import Data.Aeson.Types
-import Data.Functor.Identity
 
 import Control.Lens
 

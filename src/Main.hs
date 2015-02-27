@@ -10,11 +10,8 @@ module Main (main) where
 import BasePrelude
 import MTLPrelude
 
-import Data.Char
 import Data.Map
---import qualified Data.Attoparsec as A
 import Data.Aeson
-import Data.Aeson.Types
 import Data.Aeson.Encode.Pretty
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
@@ -28,14 +25,9 @@ import Pipes.Aeson (encodeObject)
 
 import qualified Options.Applicative as O
 
-import GHC.Generics
---import GHC.Exts (IsList(..))
-
-import System.FilePath 
 import System.Directory
 
-import VDPQ.Plan
-
+import VDPQ.IO
 
 data Command = 
     Example
@@ -86,6 +78,8 @@ parserInfo' = info' parser' "This is the main prog desc"
         , ("pretty", pure Pretty, "Print queries") 
         ] 
 
+    queryP = Query <$> destFolderP <*> planP
+
     destFolderP = O.strArgument 
         (mconcat 
             [ O.help "Destination folder for the results."
@@ -99,9 +93,6 @@ parserInfo' = info' parser' "This is the main prog desc"
                 , O.showDefault
                 , O.long "plan"
                 , O.metavar "PLAN" ])
-
-
-    queryP = Query <$> destFolderP <*> planP
 
     info' :: O.Parser a -> String -> O.ParserInfo a
     info' p desc = O.info 

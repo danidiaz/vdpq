@@ -51,7 +51,8 @@ library
         wreq >= 0.3.0.1
     exposed-modules:
         VDPQ
-        VDPQ.Plan
+        VDPQ.Types
+        VDPQ.IO
     exposed: True
     buildable: True
     hs-source-dirs: src
