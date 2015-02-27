@@ -35,5 +35,17 @@ loadJSON path =
         bytes <- tryAsync (B.readFile path)
         ExceptT (return (eitherDecode (BL.fromStrict bytes)))
 
+
 loadPlan :: FilePath -> ExceptT String IO Plan
 loadPlan  = fmap (id::Plan -> Plan) . loadJSON 
+
+
+buildVDPURL :: VDPQuery Identity -> String  
+buildVDPURL = undefined
+
+
+runVDPQuery :: VDPQuery Identity -> ExceptT String IO (Value,Value)
+runVDPQuery = undefined
+
+
+
