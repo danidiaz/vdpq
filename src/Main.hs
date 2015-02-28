@@ -15,6 +15,7 @@ import Data.Aeson
 import Data.Aeson.Encode.Pretty
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Text.IO as T
 
 import Control.Lens
 import Control.Concurrent.Async
@@ -90,8 +91,17 @@ main = do
             result <- runExceptT $ do
                 plan <- defaultFillPlan <$> loadPlan planfile
                 tryAsync (createDirectory folder)
-            --mapMOf_ _Left putStrLn result
+            case result of
+                Left msg -> putStrLn msg
+                Right _ -> return ()
+        Pretty planfile -> do
+            result <- runExceptT $ do
+                plan <- defaultFillPlan <$> loadPlan planfile
+                iforOf_ (vdp . folded) plan $ \_ q -> liftIO $ do
+                    T.putStrLn (buildVDPSchemaURL q) 
+                    T.putStrLn (buildVDPURL q) 
             case result of
                 Left msg -> putStrLn msg
                 Right _ -> return ()
         _ -> putStrLn "foo"
+    return ()

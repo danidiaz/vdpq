@@ -10,6 +10,8 @@ module VDPQ
     ,   defaultFillVDPTargets 
     ,   fillPlan
     ,   defaultFillPlan
+    ,   buildVDPSchemaURL 
+    ,   buildVDPURL 
     ) where
 
 import VDPQ.Types
