@@ -36,7 +36,7 @@ loadJSON path =
         ExceptT (return (eitherDecode (BL.fromStrict bytes)))
 
 
-loadPlan :: FilePath -> ExceptT String IO Plan
+loadPlan :: FilePath -> ExceptT String IO (Plan Maybe)
 loadPlan  = loadJSON 
 
 

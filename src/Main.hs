@@ -88,7 +88,7 @@ main = do
         Example -> BL.putStr (encodePretty examplePlan) 
         Query folder planfile -> do
             result <- runExceptT $ do
-                plan <- defaultFillVDPTargets . _vdp <$> loadPlan planfile
+                plan <- defaultFillPlan <$> loadPlan planfile
                 tryAsync (createDirectory folder)
             --mapMOf_ _Left putStrLn result
             case result of

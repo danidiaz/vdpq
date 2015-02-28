@@ -62,18 +62,20 @@ instance ToJSON (VDPQuery Maybe) where
 $(makeLenses ''VDPQuery)
 
 
-data Plan = Plan 
+data Plan f = Plan 
     {
-        _vdp :: Map String (VDPQuery Maybe)
+        _vdp :: Map String (VDPQuery f)
     } 
-    deriving (Show,Generic)
+    deriving (Generic)
 
-instance FromJSON Plan where
+instance FromJSON (Plan Maybe) where
     parseJSON = genericParseJSON aesonOptions
 
-instance ToJSON Plan where
+instance ToJSON (Plan Maybe) where
     toJSON = genericToJSON aesonOptions
 
 
 $(makeLenses ''Plan)
 
+
+data Query = VDP (VDPQuery Identity) | HTTP | Stomp deriving (Generic, Show)

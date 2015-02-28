@@ -8,6 +8,8 @@ module VDPQ
     ,   vdpQueryDefault
     ,   fillVDPTargets
     ,   defaultFillVDPTargets 
+    ,   fillPlan
+    ,   defaultFillPlan
     ) where
 
 import VDPQ.Types
@@ -25,8 +27,8 @@ defaultVDPServer = VDPServer "localhost" 9999 "admin" "admin" "admin"
 defaultTemplateName :: String
 defaultTemplateName = "_template"
 
-examplePlan :: Plan
-examplePlan = Plan 
+examplePlan :: Plan Maybe
+examplePlan = Plan
     (Data.Map.fromList
         [ (defaultTemplateName, VDPQuery "fooview" (Just "where 1 = 1") (Just defaultVDPServer))
         , ("q1", VDPQuery "fooview" (Just "where 1 = 1") Nothing)
@@ -51,11 +53,21 @@ defaultFillVDPTargets :: Map String (VDPQuery Maybe)
                       -> Map String (VDPQuery Identity) 
 defaultFillVDPTargets =  fillVDPTargets defaultVDPServer defaultTemplateName
 
+fillPlan :: (Map String (VDPQuery Maybe) -> Map String (VDPQuery Identity))
+         -> Plan Maybe -> Plan Identity
+fillPlan f plan = over vdp f plan
+
+defaultFillPlan :: Plan Maybe -> Plan Identity
+defaultFillPlan = fillPlan defaultFillVDPTargets
+
+queryList :: Plan Identity -> [Query]
+queryList (Plan vdp) = undefined 
+     
+
 buildVDPBaseURL :: VDPQuery Identity -> T.Text  
 buildVDPBaseURL q = sformat 
     ("http://" % string % ":" % int %
-        "/denodo-restfulws/" % string % "/views/" % string % "/" 
-    ) 
+        "/denodo-restfulws/" % string % "/views/" % string % "/" ) 
     (_vdpHost server)
     (_vdpPort server)
     (_vdpDatabase server)
