@@ -97,9 +97,10 @@ main = do
         Pretty planfile -> do
             result <- runExceptT $ do
                 plan <- defaultFillPlan <$> loadPlan planfile
-                iforOf_ (vdp . folded) plan $ \_ q -> liftIO $ do
-                    T.putStrLn (buildVDPSchemaURL q) 
-                    T.putStrLn (buildVDPURL q) 
+                iforOf_ (vdp . ifolded) plan $ \k q -> liftIO $ do
+                    print k
+                    print (buildVDPSchemaURL q)
+                    print (buildVDPURL q)
             case result of
                 Left msg -> putStrLn msg
                 Right _ -> return ()

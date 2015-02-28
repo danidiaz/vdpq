@@ -24,7 +24,7 @@ import Control.Lens
 import Formatting
 
 defaultVDPServer :: VDPServer
-defaultVDPServer = VDPServer "localhost" 9999 "admin" "admin" "admin"
+defaultVDPServer = VDPServer "localhost" 9090 "admin" "admin" "admin"
 
 defaultTemplateName :: String
 defaultTemplateName = "_template"
@@ -48,7 +48,7 @@ fillVDPTargets :: VDPServer
 fillVDPTargets fallbackServer templateName qs =
     let template = preview (ix templateName . targetVDP . folded) qs 
         server = fromMaybe fallbackServer template
-        qs' = filterWithKey (\k _ -> head k == '_') qs
+        qs' = filterWithKey (\k _ -> head k /= '_') qs
     in  fmap (vdpQueryDefault server) qs'
 
 defaultFillVDPTargets :: Map String (VDPQuery Maybe) 
@@ -69,7 +69,7 @@ queryList (Plan vdp) = undefined
 buildVDPBaseURL :: VDPQuery Identity -> T.Text  
 buildVDPBaseURL q = sformat 
     ("http://" % string % ":" % int %
-        "/denodo-restfulws/" % string % "/views/" % string % "/" ) 
+        "/denodo-restfulws/" % string % "/views/" % string ) 
     (_vdpHost server)
     (_vdpPort server)
     (_vdpDatabase server)
@@ -77,17 +77,18 @@ buildVDPBaseURL q = sformat
   where
     server = (runIdentity . _targetVDP) q
 
-buildVDPSchemaURL :: VDPQuery Identity -> T.Text  
-buildVDPSchemaURL q = sformat 
-    (stext % "$schema?$format=JSON")
-    (buildVDPBaseURL q)
-
-buildVDPURL :: VDPQuery Identity -> T.Text  
-buildVDPURL q = sformat
-    (stext % "$schema?$format=JSON&$displayRESTfulReferences=false" % stext)
-    (buildVDPBaseURL q)
-    (maybe "" formatWhere (_whereClause q))
+buildVDPSchemaURL :: VDPQuery Identity -> (T.Text,[(T.Text, T.Text)])
+buildVDPSchemaURL q = (url,params)
   where
-    formatWhere = sformat ("&$filter=" % string)
+    url = sformat (stext % "/$schema") (buildVDPBaseURL q)
+    params = ("$format","JSON") : []
+
+buildVDPURL :: VDPQuery Identity -> (T.Text,[(T.Text, T.Text)])
+buildVDPURL q = (buildVDPBaseURL q, params)
+  where
+    params = ("$format","JSON") : toListOf filterL q
+    filterL = whereClause 
+            . folded 
+            . to ((,) "$filter" . sformat string)
 
 
