@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns #-}
 module VDPQ 
     (
         module VDPQ.Types
@@ -68,39 +69,31 @@ defaultFillPlan = fillPlan defaultFillVDPTargets
 queryList :: Plan Identity -> [Query]
 queryList (Plan vdp) = undefined 
      
-
-buildVDPBaseURL :: VDPQuery Identity -> T.Text  
-buildVDPBaseURL q = sformat 
-    ("http://" % string % ":" % int %
-        "/denodo-restfulws/" % string % "/views/" % string ) 
-    (_vdpHost server)
-    (_vdpPort server)
-    (_vdpDatabase server)
-    (_viewName q)
+buildVDPBaseURL :: VDPQuery Identity -> (T.Text,Options)  
+buildVDPBaseURL q = (url,opts) 
   where
     server = (runIdentity . _targetVDP) q
+    auth' = basicAuth 
+        (fromString (_vdpLogin server))
+        (fromString (_vdpPassword server))
 
-buildVDPSchemaURL :: VDPQuery Identity -> (T.Text,[(T.Text, T.Text)])
-buildVDPSchemaURL q = (url,params)
+    url = sformat 
+        ("http://" % string % ":" % int %
+            "/denodo-restfulws/" % string % "/views/" % string ) 
+        (_vdpHost server)
+        (_vdpPort server)
+        (_vdpDatabase server)
+        (_viewName q)
+    opts = set (param "$format") ["JSON"]
+         . set auth (Just auth')
+         $ defaults 
+
+buildVDPSchemaURL :: VDPQuery Identity -> (T.Text,Options)
+buildVDPSchemaURL q = 
+    over _1 (sformat (stext % "/$schema")) (buildVDPBaseURL q)
+
+buildVDPURL :: VDPQuery Identity -> (T.Text,Options)
+buildVDPURL q = 
+    set (_2.param "$filter") (toListOf filterl q) (buildVDPBaseURL q)
   where
-    url = sformat (stext % "/$schema") (buildVDPBaseURL q)
-    params = ("$format","JSON") : []
-
-buildVDPURL :: VDPQuery Identity -> (T.Text,[(T.Text, T.Text)])
-buildVDPURL q = (buildVDPBaseURL q, params)
-  where
-    params = ("$format","JSON") : toListOf filterL q
-    filterL = whereClause 
-            . folded 
-            . to ((,) "$filter" . sformat string)
-
-buildVDPRequest :: VDPQuery Identity ->  (T.Text,Options)
-buildVDPRequest q = 
-    let (url,params') = buildVDPURL q
-        server = runIdentity . _targetVDP $ q 
-    in
-    (url
-    ,defaults & params .~ params'
-              & auth ?~ basicAuth (fromString . _vdpLogin $ server) 
-                                  (fromString . _vdpPassword $ server)
-    )
+    filterl = whereClause . folded . to (sformat string)
