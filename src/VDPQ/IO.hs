@@ -8,7 +8,9 @@ module VDPQ.IO
     ,   tryAsync
     ,   loadJSON
     ,   loadPlan
+    ,   Seconds(..)
     ,   runVDPQuery 
+    ,   withTimeLimit
     ) where
 
 import VDPQ
@@ -64,8 +66,16 @@ safeGET (T.unpack -> url,opts) =  do
             rjson <- tryAsync (asValue r) -- throws JSON error
             return . view responseBody $ rjson
 
-runVDPQuery :: VDPQuery Identity -> ExceptT String IO (Value,Value)
-runVDPQuery q = 
+newtype Seconds = Seconds Int
+
+toMicros :: Seconds -> Int
+toMicros (Seconds s) = s * 10^(6::Int)
+
+withTimeLimit :: Seconds -> IO a -> IO (Either () a)
+withTimeLimit (toMicros -> micros) =  race (threadDelay micros)
+
+runVDPQuery :: VDPQuery Identity -> IO (Either String (Value,Value))
+runVDPQuery q = runExceptT $
     liftA2 (,) (safeGET (buildVDPSchemaURL q)) (safeGET (buildVDPURL q))
 
 

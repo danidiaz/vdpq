@@ -13,11 +13,11 @@
         },
         "artist_name": {
             "viewName": "artist_name",
-            "whereClause": "id < 100"
+            "whereClause": "id < 10"
         },
         "release": {
             "viewName": "release",
-            "whereClause": "id < 100"
+            "whereClause": "id < 10"
         }
     }
 }

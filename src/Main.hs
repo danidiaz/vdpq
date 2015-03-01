@@ -81,6 +81,8 @@ parserInfo' = info' parser' "This is the main prog desc"
     command' (cmdName,desc,parser) = 
         O.command cmdName (info' parser desc)
 
+timeLimit :: Seconds
+timeLimit = Seconds 10
 
 main :: IO ()
 main = do
@@ -92,8 +94,8 @@ main = do
                 plan <- defaultFillPlan <$> loadPlan planfile
                 tryAsync (createDirectory folder)
                 let queryMap = view vdp plan 
-                r <- liftIO $ forM queryMap $ 
-                    runExceptT . runVDPQuery  
+                r <- liftIO $ forM queryMap $
+                    withTimeLimit timeLimit . runVDPQuery
                 liftIO $ print r                        
             case result of
                 Left msg -> putStrLn msg

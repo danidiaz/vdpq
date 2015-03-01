@@ -94,6 +94,8 @@ buildVDPSchemaURL q =
 
 buildVDPURL :: VDPQuery Identity -> (T.Text,Options)
 buildVDPURL q = 
-    set (_2.param "$filter") (toListOf filterl q) (buildVDPBaseURL q)
+      set (_2.param "$filter") (toListOf filterl q)  
+    . set (_2.param "$displayRESTfulReferences") ["false"] 
+    $ buildVDPBaseURL q
   where
     filterl = whereClause . folded . to (sformat string)
