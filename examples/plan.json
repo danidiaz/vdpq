@@ -1,0 +1,21 @@
+{
+    "vdp": {
+        "_template": {
+            "viewName": "fooview",
+            "whereClause": "where 1 = 1",
+            "targetVDP": {
+                "vdpHost": "localhost",
+                "vdpPassword": "admin",
+                "vdpPort": 9090,
+                "vdpLogin": "admin",
+                "vdpDatabase": "admin"
+            }
+        },
+        "artist_name": {
+            "viewName": "artist_name"
+        },
+        "release": {
+            "viewName": "release"
+        }
+    }
+}
