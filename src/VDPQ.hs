@@ -17,11 +17,14 @@ module VDPQ
 import VDPQ.Types
 
 import Data.Maybe
+import Data.String
 import qualified Data.Text as T
 import Data.Map
 import Control.Lens
 
 import Formatting
+
+import Network.Wreq
 
 defaultVDPServer :: VDPServer
 defaultVDPServer = VDPServer "localhost" 9090 "admin" "admin" "admin"
@@ -91,4 +94,13 @@ buildVDPURL q = (buildVDPBaseURL q, params)
             . folded 
             . to ((,) "$filter" . sformat string)
 
-
+buildVDPRequest :: VDPQuery Identity ->  (T.Text,Options)
+buildVDPRequest q = 
+    let (url,params') = buildVDPURL q
+        server = runIdentity . _targetVDP $ q 
+    in
+    (url
+    ,defaults & params .~ params'
+              & auth ?~ basicAuth (fromString . _vdpLogin $ server) 
+                                  (fromString . _vdpPassword $ server)
+    )
