@@ -91,6 +91,10 @@ main = do
             result <- runExceptT $ do
                 plan <- defaultFillPlan <$> loadPlan planfile
                 tryAsync (createDirectory folder)
+                let queryMap = view vdp plan 
+                r <- liftIO $ forM queryMap $ 
+                    runExceptT . runVDPQuery  
+                liftIO $ print r                        
             case result of
                 Left msg -> putStrLn msg
                 Right _ -> return ()

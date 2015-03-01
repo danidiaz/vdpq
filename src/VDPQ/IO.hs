@@ -8,6 +8,7 @@ module VDPQ.IO
     ,   tryAsync
     ,   loadJSON
     ,   loadPlan
+    ,   runVDPQuery 
     ) where
 
 import VDPQ

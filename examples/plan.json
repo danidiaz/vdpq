@@ -2,7 +2,7 @@
     "vdp": {
         "_template": {
             "viewName": "fooview",
-            "whereClause": "where 1 = 1",
+            "whereClause": "1 = 1",
             "targetVDP": {
                 "vdpHost": "localhost",
                 "vdpPassword": "admin",
@@ -12,10 +12,12 @@
             }
         },
         "artist_name": {
-            "viewName": "artist_name"
+            "viewName": "artist_name",
+            "whereClause": "id < 100"
         },
         "release": {
-            "viewName": "release"
+            "viewName": "release",
+            "whereClause": "id < 100"
         }
     }
 }
