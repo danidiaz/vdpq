@@ -69,9 +69,9 @@ queryList :: Plan Identity -> [Query]
 queryList (Plan vdp) = undefined 
      
 buildVDPBaseURL :: VDPQuery Identity -> (String,Options)  
-buildVDPBaseURL q = (url,opts) 
+buildVDPBaseURL query = (url,opts) 
   where
-    server = (runIdentity . _targetVDP) q
+    server = (runIdentity . _targetVDP) query
     auth' = basicAuth 
         (fromString (_vdpLogin server))
         (fromString (_vdpPassword server))
@@ -79,7 +79,7 @@ buildVDPBaseURL q = (url,opts)
     url = mconcat [
           "http://", _vdpHost server, ":", show (_vdpPort server)
         , "/denodo-restfulws/", _vdpDatabase server
-        , "/views/", _viewName q
+        , "/views/", _viewName query
         ]
 
     opts = 
