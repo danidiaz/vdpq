@@ -3,6 +3,7 @@
 module VDPQ 
     (
         module VDPQ.Types
+    ,   traverseSchema 
     ,   defaultVDPServer
     ,   defaultTemplateName
     ,   examplePlan
@@ -21,9 +22,16 @@ import Data.Monoid
 import Data.String
 import qualified Data.Text as T
 import Data.Map
+import Control.Applicative
 import Control.Lens
 
 import Network.Wreq
+
+traverseSchema :: (Applicative f, TraversableWithIndex i t) 
+               => Schema (i -> a -> f a')
+               -> Schema' t a
+               -> f (Schema' t a')
+traverseSchema (Schema fa) (Schema ta) = Schema <$> itraverse fa ta 
 
 defaultVDPServer :: VDPServer
 defaultVDPServer = VDPServer "localhost" 9090 "admin" "admin" "admin"

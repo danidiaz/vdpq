@@ -62,7 +62,6 @@ instance ToJSON (VDPQuery Maybe) where
     toJSON = genericToJSON aesonOptions
 
 
-
 data Schema a = Schema
     {
         _vdp :: a

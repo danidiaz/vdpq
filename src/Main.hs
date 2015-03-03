@@ -93,10 +93,11 @@ main = do
             result <- runExceptT $ do
                 plan <- defaultFillPlan <$> loadPlan planfile
                 tryAsync (createDirectory folder)
-                let queryMap = view vdp plan 
-                r <- liftIO $ forM queryMap $
-                    withTimeLimit timeLimit . runVDPQuery
-                liftIO $ print r                        
+                let seconds = Seconds 7
+                result <- (liftIO . runConcurrently) 
+                    (traverseSchema (executor seconds) plan)
+                let resultMap = view vdp result 
+                liftIO (print resultMap)
             case result of
                 Left msg -> putStrLn msg
                 Right _ -> return ()

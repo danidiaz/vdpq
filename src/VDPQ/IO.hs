@@ -9,8 +9,9 @@ module VDPQ.IO
     ,   loadJSON
     ,   loadPlan
     ,   Seconds(..)
-    ,   runVDPQuery 
     ,   withTimeLimit
+    ,   runVDPQuery 
+    ,   executor
     ) where
 
 import VDPQ
@@ -77,5 +78,13 @@ runVDPQuery :: VDPQuery Identity -> IO (Either String (Value,Value))
 runVDPQuery query = 
     let (schemaurl,dataurl) = buildVDPURLPair query
     in runExceptT (liftA2 (,) (safeGET schemaurl) (safeGET dataurl))
+
+executor :: Seconds 
+         -> Schema (String -> 
+                    VDPQuery Identity -> 
+                    Concurrently (Either () (Either String (Value,Value))))
+executor secs = Schema
+    (\_ q -> (Concurrently . withTimeLimit secs) (runVDPQuery q))
+
 
 
