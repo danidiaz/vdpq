@@ -105,8 +105,9 @@ main = do
                 plan <- defaultFillPlan <$> loadPlan planfile
                 iforOf_ (vdp . ifolded) plan $ \k q -> liftIO $ do
                     print k
-                    print (buildVDPSchemaURL q)
-                    print (buildVDPURL q)
+                    let (schemaurl,dataurl) = buildVDPURLPair q
+                    print schemaurl
+                    print dataurl
             case result of
                 Left msg -> putStrLn msg
                 Right _ -> return ()

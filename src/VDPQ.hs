@@ -11,8 +11,7 @@ module VDPQ
     ,   defaultFillVDPTargets 
     ,   fillPlan
     ,   defaultFillPlan
-    ,   buildVDPSchemaURL 
-    ,   buildVDPURL 
+    ,   buildVDPURLPair 
     ) where
 
 import VDPQ.Types
@@ -68,33 +67,31 @@ defaultFillPlan = fillPlan defaultFillVDPTargets
 queryList :: Plan Identity -> [Query]
 queryList (Plan vdp) = undefined 
      
-buildVDPBaseURL :: VDPQuery Identity -> (String,Options)  
-buildVDPBaseURL query = (url,opts) 
+buildVDPURLPair :: VDPQuery Identity -> ((String,Options),(String,Options)) 
+buildVDPURLPair query = ((url, opts), (url', opts'))
   where
-    server = (runIdentity . _targetVDP) query
-    auth' = basicAuth 
-        (fromString (_vdpLogin server))
-        (fromString (_vdpPassword server))
-
     url = mconcat [
           "http://", _vdpHost server, ":", show (_vdpPort server)
         , "/denodo-restfulws/", _vdpDatabase server
         , "/views/", _viewName query
         ]
 
+    url' = mconcat [ url, "/$schema" ]
+
     opts = 
           set (param "$format") ["JSON"]
-        . set auth (Just auth')
+        . set auth (Just auth_)
         $ defaults 
 
-buildVDPSchemaURL :: VDPQuery Identity -> (String,Options)
-buildVDPSchemaURL query = 
-    buildVDPBaseURL query & _1 <>~ "/$schema"
+    opts' =
+          set (param "$filter") filters  
+        . set (param "$displayRESTfulReferences") ["false"] 
+        $ opts
 
-buildVDPURL :: VDPQuery Identity -> (String,Options)
-buildVDPURL query = 
-      set (_2.param "$filter") (toListOf filterl query)  
-    . set (_2.param "$displayRESTfulReferences") ["false"] 
-    $ buildVDPBaseURL query
-  where
-    filterl = whereClause . folded . to T.pack
+    server = (runIdentity . _targetVDP) query
+
+    auth_ = basicAuth 
+        (fromString (_vdpLogin server))
+        (fromString (_vdpPassword server))
+
+    filters = toListOf (whereClause . folded . to T.pack) query

@@ -74,7 +74,8 @@ withTimeLimit :: Seconds -> IO a -> IO (Either () a)
 withTimeLimit (toMicros -> micros) =  race (threadDelay micros)
 
 runVDPQuery :: VDPQuery Identity -> IO (Either String (Value,Value))
-runVDPQuery q = runExceptT $
-    liftA2 (,) (safeGET (buildVDPSchemaURL q)) (safeGET (buildVDPURL q))
+runVDPQuery query = 
+    let (schemaurl,dataurl) = buildVDPURLPair query
+    in runExceptT (liftA2 (,) (safeGET schemaurl) (safeGET dataurl))
 
 
