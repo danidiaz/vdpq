@@ -31,8 +31,8 @@ defaultVDPServer = VDPServer "localhost" 9090 "admin" "admin" "admin"
 defaultTemplateName :: String
 defaultTemplateName = "_template"
 
-examplePlan :: Plan Maybe
-examplePlan = Plan
+examplePlan :: Plan_ 
+examplePlan = Schema
     (Data.Map.fromList
         [ (defaultTemplateName, VDPQuery "fooview" (Just "where 1 = 1") (Just defaultVDPServer))
         , ("q1", VDPQuery "fooview" (Just "where 1 = 1") Nothing)
@@ -58,15 +58,12 @@ defaultFillVDPTargets :: Map String (VDPQuery Maybe)
 defaultFillVDPTargets =  fillVDPTargets defaultVDPServer defaultTemplateName
 
 fillPlan :: (Map String (VDPQuery Maybe) -> Map String (VDPQuery Identity))
-         -> Plan Maybe -> Plan Identity
+         -> Plan_ -> Plan
 fillPlan f plan = over vdp f plan
 
-defaultFillPlan :: Plan Maybe -> Plan Identity
+defaultFillPlan :: Plan_ -> Plan
 defaultFillPlan = fillPlan defaultFillVDPTargets
 
-queryList :: Plan Identity -> [Query]
-queryList (Plan vdp) = undefined 
-     
 buildVDPURLPair :: VDPQuery Identity -> ((String, Options), (String, Options))
 buildVDPURLPair query = ((url, opts), (url', opts'))
   where

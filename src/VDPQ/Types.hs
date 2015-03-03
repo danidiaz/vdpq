@@ -53,29 +53,33 @@ data VDPQuery f = VDPQuery
 
 deriving instance Show (f VDPServer) => Show (VDPQuery f) 
 
+$(makeLenses ''VDPQuery)
+
 instance FromJSON (VDPQuery Maybe) where
     parseJSON = genericParseJSON aesonOptions
 
 instance ToJSON (VDPQuery Maybe) where
     toJSON = genericToJSON aesonOptions
 
-$(makeLenses ''VDPQuery)
 
 
-data Plan f = Plan 
+data Schema a = Schema
     {
-        _vdp :: Map String (VDPQuery f)
+        _vdp :: a
     } 
     deriving (Generic)
 
-instance FromJSON (Plan Maybe) where
+$(makeLenses ''Schema)
+
+type Schema' f a = Schema (f a)
+
+type Plan_ = Schema' (Map String) (VDPQuery Maybe)
+
+instance FromJSON Plan_ where
     parseJSON = genericParseJSON aesonOptions
 
-instance ToJSON (Plan Maybe) where
+instance ToJSON Plan_ where
     toJSON = genericToJSON aesonOptions
 
+type Plan = Schema' (Map String) (VDPQuery Identity)
 
-$(makeLenses ''Plan)
-
-
-data Query = VDP (VDPQuery Identity) | HTTP | Stomp deriving (Generic, Show)
