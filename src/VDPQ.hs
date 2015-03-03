@@ -18,12 +18,11 @@ module VDPQ
 import VDPQ.Types
 
 import Data.Maybe
+import Data.Monoid
 import Data.String
 import qualified Data.Text as T
 import Data.Map
 import Control.Lens
-
-import Formatting
 
 import Network.Wreq
 
@@ -69,7 +68,7 @@ defaultFillPlan = fillPlan defaultFillVDPTargets
 queryList :: Plan Identity -> [Query]
 queryList (Plan vdp) = undefined 
      
-buildVDPBaseURL :: VDPQuery Identity -> (T.Text,Options)  
+buildVDPBaseURL :: VDPQuery Identity -> (String,Options)  
 buildVDPBaseURL q = (url,opts) 
   where
     server = (runIdentity . _targetVDP) q
@@ -77,25 +76,25 @@ buildVDPBaseURL q = (url,opts)
         (fromString (_vdpLogin server))
         (fromString (_vdpPassword server))
 
-    url = sformat 
-        ("http://" % string % ":" % int %
-            "/denodo-restfulws/" % string % "/views/" % string ) 
-        (_vdpHost server)
-        (_vdpPort server)
-        (_vdpDatabase server)
-        (_viewName q)
-    opts = set (param "$format") ["JSON"]
-         . set auth (Just auth')
-         $ defaults 
+    url = mconcat [
+          "http://", _vdpHost server, ":", show (_vdpPort server)
+        , "/denodo-restfulws/", _vdpDatabase server
+        , "/views/", _viewName q
+        ]
 
-buildVDPSchemaURL :: VDPQuery Identity -> (T.Text,Options)
-buildVDPSchemaURL q = 
-    over _1 (sformat (stext % "/$schema")) (buildVDPBaseURL q)
+    opts = 
+          set (param "$format") ["JSON"]
+        . set auth (Just auth')
+        $ defaults 
 
-buildVDPURL :: VDPQuery Identity -> (T.Text,Options)
-buildVDPURL q = 
-      set (_2.param "$filter") (toListOf filterl q)  
+buildVDPSchemaURL :: VDPQuery Identity -> (String,Options)
+buildVDPSchemaURL query = 
+    buildVDPBaseURL query & _1 <>~ "/$schema"
+
+buildVDPURL :: VDPQuery Identity -> (String,Options)
+buildVDPURL query = 
+      set (_2.param "$filter") (toListOf filterl query)  
     . set (_2.param "$displayRESTfulReferences") ["false"] 
-    $ buildVDPBaseURL q
+    $ buildVDPBaseURL query
   where
-    filterl = whereClause . folded . to (sformat string)
+    filterl = whereClause . folded . to T.pack

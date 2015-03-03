@@ -31,7 +31,6 @@ import Control.Lens
 import Control.Concurrent.Async
 
 import System.Directory
-import Formatting
 import Network.Wreq
 
 
@@ -54,15 +53,15 @@ loadPlan  = loadJSON
 --      connection error
 --      non-200, non-204 return codes
 --      decoding error
-safeGET :: (T.Text,Options) ->  ExceptT String IO Value
-safeGET (T.unpack -> url,opts) =  do
+safeGET :: (String,Options) ->  ExceptT String IO Value
+safeGET (url,opts) =  do
     r <- tryAsync (getWith opts url) 
     let status = view (responseStatus.statusCode) r
     if status == 204
         then return Null
         else do
             unless (status == 200) . throwE $
-                T.unpack (sformat ("Received status code: " % int) status)
+                ("Received HTTP status code: " <> show status)
             rjson <- tryAsync (asValue r) -- throws JSON error
             return . view responseBody $ rjson
 
