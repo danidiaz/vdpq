@@ -67,7 +67,7 @@ defaultFillPlan = fillPlan defaultFillVDPTargets
 queryList :: Plan Identity -> [Query]
 queryList (Plan vdp) = undefined 
      
-buildVDPURLPair :: VDPQuery Identity -> ((String,Options),(String,Options)) 
+buildVDPURLPair :: VDPQuery Identity -> ((String, Options), (String, Options))
 buildVDPURLPair query = ((url, opts), (url', opts'))
   where
     url = mconcat [
@@ -79,14 +79,14 @@ buildVDPURLPair query = ((url, opts), (url', opts'))
     url' = mconcat [ url, "/$schema" ]
 
     opts = 
-          set (param "$format") ["JSON"]
-        . set auth (Just auth_)
-        $ defaults 
+        (set (param "$format") ["JSON"] .
+         set auth (Just auth_))
+        defaults 
 
     opts' =
-          set (param "$filter") filters  
-        . set (param "$displayRESTfulReferences") ["false"] 
-        $ opts
+        (set (param "$filter") filters .
+         set (param "$displayRESTfulReferences") ["false"])
+        opts
 
     server = (runIdentity . _targetVDP) query
 
@@ -94,4 +94,4 @@ buildVDPURLPair query = ((url, opts), (url', opts'))
         (fromString (_vdpLogin server))
         (fromString (_vdpPassword server))
 
-    filters = toListOf (whereClause . folded . to T.pack) query
+    filters = toListOf (whereClause . folded . to fromString) query
