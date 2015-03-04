@@ -73,25 +73,25 @@ defaultFillPlan :: Plan_ -> Plan
 defaultFillPlan = fillPlan defaultFillVDPTargets
 
 buildVDPURLPair :: VDPQuery Identity -> ((String, Options), (String, Options))
-buildVDPURLPair query = ((url, opts), (url', opts'))
+buildVDPURLPair query = ((schemaurl, schemaopts), (dataurl, dataopts))
   where
-    url = mconcat [
+    dataurl = mconcat [
           "http://", _vdpHost server, ":", show (_vdpPort server)
         , "/denodo-restfulws/", _vdpDatabase server
         , "/views/", _viewName query
         ]
 
-    url' = mconcat [ url, "/$schema" ]
+    schemaurl = mconcat [ dataurl, "/$schema" ]
 
-    opts = 
+    schemaopts = 
         (set (param "$format") ["JSON"] .
          set auth (Just auth_))
         defaults 
 
-    opts' =
+    dataopts =
         (set (param "$filter") filters .
          set (param "$displayRESTfulReferences") ["false"])
-        opts
+        schemaopts
 
     server = (runIdentity . _targetVDP) query
 
