@@ -101,7 +101,7 @@ main = do
                     (Schema f1) = basicExecutor
                     decoratedExecutor = Schema
                         ((withConc sem .
-                          withLog names (view vdp namesSchema) .
+                          withLog names (namesSchema^.vdp) .
                           withTimeout seconds) 
                          f1)
                 result <- (liftIO . runConcurrently)
