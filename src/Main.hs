@@ -11,6 +11,7 @@ import BasePrelude
 import MTLPrelude
 
 import Data.Map
+import qualified Data.Set as S
 import Data.Aeson
 import Data.Aeson.Encode.Pretty
 import qualified Data.ByteString as B
@@ -19,6 +20,8 @@ import qualified Data.Text.IO as T
 
 import Control.Lens
 import Control.Concurrent.Async
+import Control.Concurrent.QSem
+import Control.Concurrent.MVar
 
 import Pipes
 --import qualified Pipes.ByteString as B
@@ -92,12 +95,20 @@ main = do
         Query folder planfile -> do
             result <- runExceptT $ do
                 plan <- defaultFillPlan <$> loadPlan planfile
-                tryAsync (createDirectory folder)
+                sem <- liftIO (newQSem 2)
+                names <- liftIO (newMVar S.empty)
                 let seconds = Seconds 7
-                result <- (liftIO . runConcurrently) 
-                    (traverseSchema (executor seconds) plan)
+                    (Schema f1) = basicExecutor
+                    decoratedExecutor = Schema
+                        ((withConc sem .
+                          withLog names (view vdp namesSchema) .
+                          withTimeout seconds) 
+                         f1)
+                result <- (liftIO . runConcurrently)
+                    (traverseSchema decoratedExecutor plan)
                 let resultMap = view vdp result 
                 liftIO (print resultMap)
+                tryAsync (createDirectory folder)
             case result of
                 Left msg -> putStrLn msg
                 Right _ -> return ()

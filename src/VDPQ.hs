@@ -4,6 +4,7 @@ module VDPQ
     (
         module VDPQ.Types
     ,   traverseSchema 
+    ,   namesSchema
     ,   defaultVDPServer
     ,   defaultTemplateName
     ,   examplePlan
@@ -32,6 +33,9 @@ traverseSchema :: (Applicative f, TraversableWithIndex i t)
                -> Schema' t a
                -> f (Schema' t a')
 traverseSchema (Schema fa) (Schema ta) = Schema <$> itraverse fa ta 
+
+namesSchema :: Schema String
+namesSchema = Schema "vdp"
 
 defaultVDPServer :: VDPServer
 defaultVDPServer = VDPServer "localhost" 9090 "admin" "admin" "admin"
