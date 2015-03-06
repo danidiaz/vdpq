@@ -104,6 +104,7 @@ main = withSocketsDo $ do
                         withConc sem .
                         withLog names name .
                         withTimeout seconds
+                    -- this works thanks to let-polymorphism
                     decoratedExecutor = 
                         (Schema
                             decorator)
