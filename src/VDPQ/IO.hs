@@ -5,7 +5,7 @@
 module VDPQ.IO 
     (
         module VDPQ
-    ,   tryAsync
+    ,   tryAny'
     ,   loadJSON
     ,   loadPlan
     ,   Seconds(..)
@@ -42,16 +42,15 @@ import System.Directory
 import System.IO
 import Network.Wreq
 
+import Control.Exception.Enclosed
 
-tryAsync :: (Functor m, MonadIO m) => IO a -> ExceptT String m a
-tryAsync action = withExceptT show $
-    ExceptT (liftIO (withAsync action waitCatch))
-
+tryAny' :: (Functor m, MonadIO m) => IO a -> ExceptT String m a
+tryAny' = withExceptT show . ExceptT . liftIO . tryAny
 
 loadJSON :: FromJSON a => FilePath -> ExceptT String IO a
 loadJSON path = 
     withExceptT ("Loading JSON: "++) $ do
-        bytes <- tryAsync (B.readFile path)
+        bytes <- tryAny' (B.readFile path)
         ExceptT (return (eitherDecode (BL.fromStrict bytes)))
 
 
@@ -64,14 +63,14 @@ loadPlan  = loadJSON
 --      decoding error
 safeGET :: (String,Options) ->  ExceptT String IO Value
 safeGET (url,opts) =  do
-    r <- tryAsync (getWith opts url) 
+    r <- tryAny' (getWith opts url) 
     let status = view (responseStatus.statusCode) r
     if status == 204
         then return Null
         else do
             (unless (status == 200) . throwE) 
                 ("Received HTTP status code: " <> show status)
-            rjson <- tryAsync (asValue r) -- throws JSON error
+            rjson <- tryAny' (asValue r) -- throws JSON error
             return . view responseBody $ rjson
 
 newtype Seconds = Seconds Int

@@ -30,8 +30,10 @@ import Pipes.Aeson (encodeObject)
 import qualified Options.Applicative as O
 
 import System.Directory
+import Network
 
 import VDPQ.IO
+
 
 data Command = 
     Example
@@ -88,7 +90,7 @@ timeLimit :: Seconds
 timeLimit = Seconds 10
 
 main :: IO ()
-main = do
+main = withSocketsDo $ do
     plan <- O.execParser parserInfo'
     case plan of
         Example -> BL.putStr (encodePretty examplePlan) 
@@ -113,7 +115,7 @@ main = do
                     (traverseSchema decoratedExecutor plan)
                 let resultMap = view vdp result 
                 liftIO (print resultMap)
-                tryAsync (createDirectory folder)
+                tryAny' (createDirectory folder)
             case result of
                 Left msg -> putStrLn msg
                 Right _ -> return ()
