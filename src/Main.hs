@@ -98,12 +98,17 @@ main = do
                 sem <- liftIO (newQSem 2)
                 names <- liftIO (newMVar S.empty)
                 let seconds = Seconds 7
-                    (Schema f1) = basicExecutor
-                    decoratedExecutor = Schema
-                        ((withConc sem .
-                          withLog names (namesSchema^.vdp) .
-                          withTimeout seconds) 
-                         f1)
+                    decorator name = 
+                        withConc sem .
+                        withLog names name .
+                        withTimeout seconds
+                    decoratedExecutor = 
+                        (Schema
+                            decorator)
+                        `apSchema`
+                        namesSchema
+                        `apSchema`
+                        basicExecutor
                 result <- (liftIO . runConcurrently)
                     (traverseSchema decoratedExecutor plan)
                 let resultMap = view vdp result 

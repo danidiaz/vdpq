@@ -9,9 +9,11 @@
 module VDPQ.Types where
 
 import Data.Map (Map)
+import Data.Monoid
 import Data.Aeson
 import Data.Aeson.Types
 
+import Control.Applicative
 import Control.Lens
 
 import GHC.Generics
@@ -71,6 +73,28 @@ data Schema a = Schema
 $(makeLenses ''Schema)
 
 type Schema' f a = Schema (f a)
+
+-- Boilerplate time !!!!!
+traverseSchema :: (Applicative f, TraversableWithIndex i t) 
+               => Schema (i -> a -> f a')
+               -> Schema' t a
+               -> f (Schema' t a')
+traverseSchema (Schema fa) (Schema ta) = Schema <$> itraverse fa ta 
+
+apSchema :: Schema (a -> a')
+         -> Schema a
+         -> Schema a'
+apSchema (Schema fa) (Schema a) = Schema (fa a)
+
+foldMapSchema :: (Monoid m, FoldableWithIndex i t) 
+              => Schema (i -> a -> m)
+              -> Schema' t a
+              -> m
+foldMapSchema (Schema fa) (Schema a) = ifoldMap fa a 
+
+namesSchema :: Schema String
+namesSchema = Schema "vdp"
+--
 
 type Plan_ = Schema' (Map String) (VDPQuery Maybe)
 

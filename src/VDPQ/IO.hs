@@ -69,7 +69,7 @@ safeGET (url,opts) =  do
     if status == 204
         then return Null
         else do
-            unless (status == 200) . throwE $
+            (unless (status == 200) . throwE) 
                 ("Received HTTP status code: " <> show status)
             rjson <- tryAsync (asValue r) -- throws JSON error
             return . view responseBody $ rjson
