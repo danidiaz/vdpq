@@ -21,6 +21,7 @@ import VDPQ
 import BasePrelude hiding ((%))
 import MTLPrelude
 
+import Data.Bifunctor
 import Data.List
 import Data.Map
 import qualified Data.Set as S
@@ -73,16 +74,25 @@ safeGET (url,opts) =  do
             rjson <- tryAny' (asValue r) -- throws JSON error
             return . view responseBody $ rjson
 
+
+runVDPQuery :: VDPQuery Identity -> IO (Either ResponseError VDPResponse)
+runVDPQuery query = 
+    let (schemaurl,dataurl) = buildVDPURLPair query
+    in (runExceptT . withExceptT ResponseError)
+       (liftA2 VDPResponse (safeGET schemaurl) (safeGET dataurl))
+
 newtype Seconds = Seconds Int
 
 toMicros :: Seconds -> Int
 toMicros (Seconds s) = s * 10^(6::Int)
 
+data Timeout = Timeout deriving (Show)
+
 withTimeout :: Seconds 
             -> (i -> a -> IO b) 
-            -> (i -> a -> IO (Either () b))
+            -> (i -> a -> IO (Either Timeout b))
 withTimeout (toMicros -> micros) f = \i a -> 
-    race (threadDelay micros) (f i a) 
+    race (threadDelay micros *> pure Timeout) (f i a) 
 
 withLog :: MVar (S.Set String) 
         -> String
@@ -103,14 +113,10 @@ withConc :: QSem -> (i -> a -> IO b) -> (i -> a -> Concurrently b)
 withConc sem f = \i a -> Concurrently 
     (bracket_ (waitQSem sem) (signalQSem sem) (f i a))
 
-runVDPQuery :: VDPQuery Identity -> IO (Either String (Value,Value))
-runVDPQuery query = 
-    let (schemaurl,dataurl) = buildVDPURLPair query
-    in runExceptT (liftA2 (,) (safeGET schemaurl) (safeGET dataurl))
 
 basicExecutor :: Schema (String -> 
                          VDPQuery Identity -> 
-                         IO (Either String (Value,Value)))
+                         IO (Either ResponseError VDPResponse))
 basicExecutor = Schema
     (\_ -> runVDPQuery)
 

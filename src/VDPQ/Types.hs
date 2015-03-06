@@ -11,6 +11,7 @@ module VDPQ.Types where
 import Data.Map (Map)
 import Data.Monoid
 import Data.Aeson
+import Data.String
 import Data.Aeson.Types
 
 import Control.Applicative
@@ -64,6 +65,23 @@ instance ToJSON (VDPQuery Maybe) where
     toJSON = genericToJSON aesonOptions
 
 
+data VDPResponse = VDPResponse 
+    {
+        _schema :: Value 
+    ,   _data :: Value
+    }
+    deriving (Show)
+
+
+$(makeLenses ''VDPResponse)
+
+
+newtype ResponseError = ResponseError String deriving (Show)
+
+instance IsString ResponseError where
+    fromString = ResponseError
+
+
 data Schema a = Schema
     {
         _vdp :: a
@@ -94,7 +112,7 @@ foldMapSchema (Schema fa) (Schema a) = ifoldMap fa a
 
 namesSchema :: Schema String
 namesSchema = Schema "vdp"
---
+-- boilerplate end.
 
 type Plan_ = Schema' (Map String) (VDPQuery Maybe)
 
@@ -105,4 +123,8 @@ instance ToJSON Plan_ where
     toJSON = genericToJSON aesonOptions
 
 type Plan = Schema' (Map String) (VDPQuery Identity)
+
+
+
+
 
