@@ -98,7 +98,7 @@ main = withSocketsDo $ do
         Example -> BL.putStr (encodePretty examplePlan) 
         Query folder planfile -> do
             result <- runExceptT $ do
-                plan <- defaultFillPlan <$> loadPlan planfile
+                plan <- defaultFillPlan <$> loadPlan (fromString planfile)
                 sem <- liftIO (newQSem 2)
                 names <- liftIO (newMVar S.empty)
                 let seconds = Seconds 7
@@ -124,7 +124,7 @@ main = withSocketsDo $ do
                 Right _ -> return ()
         Pretty planfile -> do
             result <- runExceptT $ do
-                plan <- defaultFillPlan <$> loadPlan planfile
+                plan <- defaultFillPlan <$> loadPlan (fromString planfile)
                 iforOf_ (vdp . ifolded) plan $ \k q -> liftIO $ do
                     print k
                     let (schemaurl,dataurl) = buildVDPURLPair q

@@ -33,7 +33,8 @@ import Data.Aeson
 import Data.Aeson.Encode.Pretty
 import qualified Data.Foldable as F
 import qualified Data.Text as T
-import qualified Data.ByteString as B
+--import qualified Data.Text.Lazy.IO as TLIO
+--import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
 
 import Control.Monad
@@ -55,14 +56,20 @@ import qualified Filesystem.Path.CurrentOS as F
 tryAnyS :: (Functor m, MonadIO m) => IO a -> ExceptT String m a
 tryAnyS = withExceptT show . ExceptT . liftIO . tryAny
 
-loadJSON :: FromJSON a => FilePath -> ExceptT String IO a
+loadJSON :: FromJSON a => F.FilePath -> ExceptT String IO a
 loadJSON path = 
     withExceptT ("Loading JSON: "++) $ do
-        bytes <- tryAnyS (B.readFile path)
-        ExceptT (return (eitherDecode (BL.fromStrict bytes)))
+        bytes <- tryAnyS (F.readFile path)
+        ExceptT (return (eitherDecodeStrict' bytes))
 
+loadJSON' :: FromJSON a => F.FilePath -> IO a
+loadJSON' path = runExceptT (loadJSON path) >>= return . either error id 
 
-loadPlan :: FilePath -> ExceptT String IO Plan_
+writeJSON :: ToJSON a => a -> F.FilePath -> IO () 
+writeJSON a path  = F.withFile path F.WriteMode $ \h ->
+    (BL.hPutStr h . encodePretty) a
+
+loadPlan :: F.FilePath -> ExceptT String IO Plan_
 loadPlan  = loadJSON 
 
 -- Things that can go wrong:
@@ -172,3 +179,21 @@ instance FromFolder ResponseError where
     readFromFolder path =
         ResponseError . T.unpack <$> F.readTextFile (path <> errorFileName)
     existsInFolder path _ = F.isFile (path <> errorFileName)
+
+
+vdpResponseFileNames :: (F.FilePath,F.FilePath)
+vdpResponseFileNames = ("schema.json","data.json")
+
+instance ToFolder VDPResponse where
+    writeToFolder path (VDPResponse s d) =  
+        let (sf,df) = vdpResponseFileNames 
+        in writeJSON s (path <> sf) >> writeJSON d (path <> df) 
+
+instance FromFolder VDPResponse where
+    readFromFolder path = let (sf,df) = vdpResponseFileNames in
+         VDPResponse <$> loadJSON' (path <> sf) <*> loadJSON' (path <> df)    
+    existsInFolder path _ = 
+        let (sf,_) = vdpResponseFileNames in F.isFile (path <> sf) 
+
+
+
