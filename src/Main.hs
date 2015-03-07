@@ -29,8 +29,10 @@ import Pipes.Aeson (encodeObject)
 
 import qualified Options.Applicative as O
 
-import System.Directory
 import Network
+
+import qualified Filesystem as F
+import qualified Filesystem.Path.CurrentOS as F
 
 import VDPQ.IO
 
@@ -116,7 +118,7 @@ main = withSocketsDo $ do
                     (traverseSchema decoratedExecutor plan)
                 let resultMap = view vdp result 
                 liftIO (print resultMap)
-                tryAny' (createDirectory folder)
+                tryAny' (F.createDirectory False (fromString folder))
             case result of
                 Left msg -> putStrLn msg
                 Right _ -> return ()

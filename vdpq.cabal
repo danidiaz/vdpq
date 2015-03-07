@@ -49,7 +49,10 @@ library
         directory >= 1.2.1.0,
         bytestring >= 0.10.4.0,
         wreq >= 0.3.0.1,
-        enclosed-exceptions >= 1.0.1
+        -- https://www.fpcomplete.com/school/using-fphc/recommended-libraries
+        enclosed-exceptions >= 1.0.1,
+        system-filepath >= 0.4.13,
+        system-fileio >= 0.3.16
     exposed-modules:
         VDPQ
         VDPQ.Types
@@ -98,7 +101,9 @@ Executable vdpq
         wreq >= 0.3.0.1,
         bytestring >= 0.10.4.0,
         network,
-        enclosed-exceptions >= 1.0.1
+        enclosed-exceptions >= 1.0.1,
+        system-filepath >= 0.4.13,
+        system-fileio >= 0.3.16
 
 Source-repository head
     type:     git
