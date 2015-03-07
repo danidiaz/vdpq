@@ -118,7 +118,7 @@ main = withSocketsDo $ do
                     (traverseSchema decoratedExecutor plan)
                 let resultMap = view vdp result 
                 liftIO (print resultMap)
-                tryAny' (F.createDirectory False (fromString folder))
+                tryAnyS (F.createDirectory False (fromString folder))
             case result of
                 Left msg -> putStrLn msg
                 Right _ -> return ()
