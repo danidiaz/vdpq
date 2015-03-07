@@ -151,4 +151,18 @@ instance FromFolder a => FromFolder (Either Timeout a) where
            then Left <$> return Timeout
            else Right <$> readFromFolder path
 
+errorFileName :: F.FilePath
+errorFileName  = "_error_.txt"
 
+instance ToFolder ResponseError where
+    writeToFolder path (ResponseError msg) = 
+        F.writeTextFile (path <> errorFileName) (fromString msg)
+
+instance FromFolder a => FromFolder (Either ResponseError a) where
+    readFromFolder path = do
+       exists <- F.isFile (path <> errorFileName) 
+       if exists 
+           then Left . ResponseError <$> loadStr
+           else Right <$> readFromFolder path
+      where
+        loadStr = T.unpack <$> F.readTextFile (path <> errorFileName)
