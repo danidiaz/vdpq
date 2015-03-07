@@ -27,6 +27,7 @@ import Data.Bifoldable
 import Data.List
 import Data.Monoid
 import Data.Map
+import Data.Proxy
 import qualified Data.Set as S
 import Data.Aeson
 import Data.Aeson.Encode.Pretty
@@ -44,7 +45,7 @@ import Control.Concurrent.MVar
 
 import System.Directory
 import System.IO
-import Network.Wreq
+import qualified Network.Wreq as W
 
 import Control.Exception.Enclosed
 
@@ -68,17 +69,17 @@ loadPlan  = loadJSON
 --      connection error
 --      non-200, non-204 return codes
 --      decoding error
-safeGET :: (String,Options) ->  ExceptT String IO Value
+safeGET :: (String, W.Options) ->  ExceptT String IO Value
 safeGET (url,opts) =  do
-    r <- tryAnyS (getWith opts url) 
-    let status = view (responseStatus.statusCode) r
+    r <- tryAnyS (W.getWith opts url) 
+    let status = view (W.responseStatus.W.statusCode) r
     if status == 204
         then return Null
         else do
             (unless (status == 200) . throwE) 
                 ("Received HTTP status code: " <> show status)
-            rjson <- tryAnyS (asValue r) -- throws JSON error
-            return . view responseBody $ rjson
+            rjson <- tryAnyS (W.asValue r) -- throws JSON error
+            return . view W.responseBody $ rjson
 
 
 runVDPQuery :: VDPQuery Identity -> IO (Either ResponseError VDPResponse)
@@ -132,10 +133,22 @@ class ToFolder t where
 
 class FromFolder t where
     readFromFolder :: F.FilePath -> IO t
+    existsInFolder :: F.FilePath -> Proxy t -> IO Bool
 
 instance (ToFolder a, ToFolder b) => ToFolder (Either a b) where
     writeToFolder folder =
         bitraverse_ (writeToFolder folder) (writeToFolder folder)
+
+instance (FromFolder a,FromFolder b) => FromFolder (Either a b) where
+    readFromFolder path = do
+        exists <- existsInFolder path (Proxy::Proxy a)
+        if exists 
+            then Left <$> readFromFolder path
+            else Right <$> readFromFolder path
+
+    existsInFolder path _ = 
+        (||) <$> existsInFolder path (Proxy::Proxy a) 
+             <*> existsInFolder path (Proxy::Proxy b) 
 
 timeoutFileName :: F.FilePath
 timeoutFileName = "_timeout_"
@@ -144,12 +157,9 @@ instance ToFolder Timeout where
     writeToFolder path Timeout  = 
         F.writeTextFile (path <> timeoutFileName) mempty
 
-instance FromFolder a => FromFolder (Either Timeout a) where
-    readFromFolder path = do
-       exists <- F.isFile (path <> timeoutFileName) 
-       if exists 
-           then Left <$> return Timeout
-           else Right <$> readFromFolder path
+instance FromFolder Timeout where
+    readFromFolder _ = return Timeout
+    existsInFolder path _ = F.isFile (path <> timeoutFileName)
 
 errorFileName :: F.FilePath
 errorFileName  = "_error_.txt"
@@ -158,11 +168,7 @@ instance ToFolder ResponseError where
     writeToFolder path (ResponseError msg) = 
         F.writeTextFile (path <> errorFileName) (fromString msg)
 
-instance FromFolder a => FromFolder (Either ResponseError a) where
-    readFromFolder path = do
-       exists <- F.isFile (path <> errorFileName) 
-       if exists 
-           then Left . ResponseError <$> loadStr
-           else Right <$> readFromFolder path
-      where
-        loadStr = T.unpack <$> F.readTextFile (path <> errorFileName)
+instance FromFolder ResponseError where
+    readFromFolder path =
+        ResponseError . T.unpack <$> F.readTextFile (path <> errorFileName)
+    existsInFolder path _ = F.isFile (path <> errorFileName)
