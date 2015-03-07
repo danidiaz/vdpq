@@ -1,6 +1,8 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module VDPQ.IO 
     (
@@ -21,8 +23,9 @@ import VDPQ
 import BasePrelude hiding ((%))
 import MTLPrelude
 
-import Data.Bifunctor
+import Data.Bifoldable
 import Data.List
+import Data.Monoid
 import Data.Map
 import qualified Data.Set as S
 import Data.Aeson
@@ -44,6 +47,9 @@ import System.IO
 import Network.Wreq
 
 import Control.Exception.Enclosed
+
+import qualified Filesystem as F
+import qualified Filesystem.Path.CurrentOS as F
 
 tryAnyS :: (Functor m, MonadIO m) => IO a -> ExceptT String m a
 tryAnyS = withExceptT show . ExceptT . liftIO . tryAny
@@ -120,5 +126,29 @@ basicExecutor :: Schema (String ->
 basicExecutor = Schema
     (\_ -> runVDPQuery)
 
+
+class ToFolder t where
+    writeToFolder :: F.FilePath -> t -> IO ()
+
+class FromFolder t where
+    readFromFolder :: F.FilePath -> IO t
+
+instance (ToFolder a, ToFolder b) => ToFolder (Either a b) where
+    writeToFolder folder =
+        bitraverse_ (writeToFolder folder) (writeToFolder folder)
+
+timeoutFileName :: F.FilePath
+timeoutFileName = "_timeout_"
+
+instance ToFolder Timeout where
+    writeToFolder path Timeout  = 
+        F.writeTextFile (path <> timeoutFileName) mempty
+
+instance FromFolder a => FromFolder (Either Timeout a) where
+    readFromFolder path = do
+       exists <- F.isFile (path <> timeoutFileName) 
+       if exists 
+           then Left <$> return Timeout
+           else Right <$> readFromFolder path
 
 
