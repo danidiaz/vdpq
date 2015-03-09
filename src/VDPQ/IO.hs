@@ -215,27 +215,25 @@ instance (FromFolder a) => FromFolder (Map String a) where
 
 instance (ToFolder a) => ToFolder (Schema a) where
     writeToFolder path s = do
-       let calcPath x = path <> fromString x
+       let calcPath = (<>) path . fromString 
            calcPathSchema = Schema
                calcPath
            pathSchema = calcPathSchema `apSchema` namesSchema
-           writeFunc _ path = F.createDirectory False path
-           writeSchema = Schema
+       let writeFunc path = F.createDirectory False path
+           writeFolderSchema = Schema
                 writeFunc
-       traverseSchema writeSchema (idSchema pathSchema) --ugly! 
-       -- ...
-       let writeFunc2 path _ x = writeToFolder path x
-           writeSchema2 = Schema
-              writeFunc2     
-           writeSchema3 = writeSchema2 `apSchema` pathSchema
-       traverseSchema writeSchema3 (idSchema s) --ugly! 
+       _ <- traverseSchema writeFolderSchema pathSchema 
+       let writeSchema = Schema
+              writeToFolder 
+           writeSchema' = writeSchema `apSchema` pathSchema
+       _ <- traverseSchema writeSchema' s
        return ()
             
 
 instance (FromFolder a) => FromFolder (Schema a) where
     readFromFolder path = do
-        let traverseX _ name = readFromFolder (path <> fromString name)  
+        let readFunc name = readFromFolder (path <> fromString name)  
             readerSchema = Schema
-                traverseX
-        unidSchema <$> traverseSchema readerSchema (idSchema namesSchema)
+                readFunc
+        traverseSchema readerSchema namesSchema
         

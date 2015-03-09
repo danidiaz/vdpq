@@ -90,38 +90,30 @@ data Schema a = Schema
 
 $(makeLenses ''Schema)
 
-type Schema' f a = Schema (f a)
 
 -- Boilerplate time !!!!!
-traverseSchema :: (Applicative f, TraversableWithIndex i t) 
-               => Schema (i -> a -> f a')
-               -> Schema' t a
-               -> f (Schema' t a')
-traverseSchema (Schema fa) (Schema ta) = Schema <$> itraverse fa ta 
+traverseSchema :: (Applicative f) 
+               => Schema (a -> f a')
+               -> Schema a
+               -> f (Schema a')
+traverseSchema (Schema fa) (Schema ta) = Schema <$> fa ta
 
 apSchema :: Schema (a -> a')
          -> Schema a
          -> Schema a'
 apSchema (Schema fa) (Schema a) = Schema (fa a)
 
-idSchema :: Schema a -> Schema' Identity a
-idSchema (Schema a) = Schema (Identity a)
-
-unidSchema :: Schema' Identity a -> Schema a
-unidSchema (Schema (Identity a)) =  Schema a
-
-foldMapSchema :: (Monoid m, FoldableWithIndex i t) 
-              => Schema (i -> a -> m)
-              -> Schema' t a
+foldMapSchema :: (Monoid m) 
+              => Schema (a -> m)
+              -> Schema a
               -> m
-foldMapSchema (Schema fa) (Schema a) = ifoldMap fa a 
+foldMapSchema (Schema fa) (Schema a) = fa a 
 
 namesSchema :: Schema String
 namesSchema = Schema "vdp"
-
 -- boilerplate end.
 
-type Plan_ = Schema' (Map String) (VDPQuery Maybe)
+type Plan_ = Schema (Map String (VDPQuery Maybe))
 
 instance FromJSON Plan_ where
     parseJSON = genericParseJSON aesonOptions
@@ -129,7 +121,7 @@ instance FromJSON Plan_ where
 instance ToJSON Plan_ where
     toJSON = genericToJSON aesonOptions
 
-type Plan = Schema' (Map String) (VDPQuery Identity)
+type Plan = Schema (Map String (VDPQuery Identity))
 
 data Timeout = Timeout deriving (Show)
 

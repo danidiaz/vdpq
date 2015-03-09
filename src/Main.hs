@@ -52,8 +52,7 @@ defaultPlanFile = "plan.json"
 
 type Errors r = Either Timeout (Either ResponseError r)
 
-type Responses = Schema' (Map String)
-                         (Errors VDPResponse)
+type Responses = Schema (Map String (Errors VDPResponse))
 
 parserInfo' :: O.ParserInfo Command  
 parserInfo' = info' parser' "This is the main prog desc"
@@ -108,6 +107,7 @@ main = withSocketsDo $ do
                 names <- liftIO (newMVar S.empty)
                 let seconds = Seconds 7
                     decorator name = 
+                        itraverse .
                         withConc sem .
                         withLog names name .
                         withTimeout seconds
