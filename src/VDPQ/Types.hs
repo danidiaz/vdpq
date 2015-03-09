@@ -92,6 +92,9 @@ $(makeLenses ''Schema)
 
 
 -- Boilerplate time !!!!!
+uniformSchema :: a -> Schema a 
+uniformSchema a = Schema a
+
 traverseSchema :: (Applicative f) 
                => Schema (a -> f a')
                -> Schema a

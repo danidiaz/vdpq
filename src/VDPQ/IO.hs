@@ -216,13 +216,9 @@ instance (FromFolder a) => FromFolder (Map String a) where
 instance (ToFolder a) => ToFolder (Schema a) where
     writeToFolder path s = do
        let calcPath = (<>) path . fromString 
-           calcPathSchema = Schema
-               calcPath
-           pathSchema = calcPathSchema `apSchema` namesSchema
+           pathSchema = uniformSchema calcPath `apSchema` namesSchema
        let writeFunc path = F.createDirectory False path
-           writeFolderSchema = Schema
-                writeFunc
-       _ <- traverseSchema writeFolderSchema pathSchema 
+       _ <- traverseSchema (uniformSchema writeFunc) pathSchema 
        let writeSchema = Schema
               writeToFolder 
            writeSchema' = writeSchema `apSchema` pathSchema
