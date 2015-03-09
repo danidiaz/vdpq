@@ -140,22 +140,21 @@ class ToFolder t where
 
 class FromFolder t where
     readFromFolder :: F.FilePath -> IO t
+
+class FromFolder t => InFolder t where
     existsInFolder :: F.FilePath -> Proxy t -> IO Bool
+
 
 instance (ToFolder a, ToFolder b) => ToFolder (Either a b) where
     writeToFolder folder =
         bitraverse_ (writeToFolder folder) (writeToFolder folder)
 
-instance (FromFolder a,FromFolder b) => FromFolder (Either a b) where
+instance (InFolder a,FromFolder b) => FromFolder (Either a b) where
     readFromFolder path = do
         exists <- existsInFolder path (Proxy::Proxy a)
         if exists 
             then Left <$> readFromFolder path
             else Right <$> readFromFolder path
-
-    existsInFolder path _ = 
-        (||) <$> existsInFolder path (Proxy::Proxy a) 
-             <*> existsInFolder path (Proxy::Proxy b) 
 
 timeoutFileName :: F.FilePath
 timeoutFileName = "_timeout_"
@@ -166,6 +165,8 @@ instance ToFolder Timeout where
 
 instance FromFolder Timeout where
     readFromFolder _ = return Timeout
+
+instance InFolder Timeout where
     existsInFolder path _ = F.isFile (path <> timeoutFileName)
 
 errorFileName :: F.FilePath
@@ -178,6 +179,8 @@ instance ToFolder ResponseError where
 instance FromFolder ResponseError where
     readFromFolder path =
         ResponseError . T.unpack <$> F.readTextFile (path <> errorFileName)
+
+instance InFolder ResponseError where
     existsInFolder path _ = F.isFile (path <> errorFileName)
 
 
@@ -192,9 +195,6 @@ instance ToFolder VDPResponse where
 instance FromFolder VDPResponse where
     readFromFolder path = let (sf,df) = vdpResponseFileNames in
          VDPResponse <$> loadJSON' (path <> sf) <*> loadJSON' (path <> df)    
-    existsInFolder path _ = 
-        let (sf,_) = vdpResponseFileNames in F.isFile (path <> sf) 
-
 
 instance (ToFolder a) => ToFolder (Map String a) where
     writeToFolder path m =  
@@ -211,7 +211,6 @@ instance (FromFolder a) => FromFolder (Map String a) where
         let mkPair f = (,) (show (F.filename f)) <$> readFromFolder f
         pairs <- T.mapM mkPair folders
         return (Data.Map.fromList pairs)
-    existsInFolder _ _ = return True
 
 
 instance (ToFolder a) => ToFolder (Schema a) where
@@ -225,7 +224,6 @@ instance (ToFolder a) => ToFolder (Schema a) where
                 writeFunc
        traverseSchema writeSchema (idSchema pathSchema) --ugly! 
        -- ...
-       --
        let writeFunc2 path _ x = writeToFolder path x
            writeSchema2 = Schema
               writeFunc2     
@@ -240,5 +238,4 @@ instance (FromFolder a) => FromFolder (Schema a) where
             readerSchema = Schema
                 traverseX
         unidSchema <$> traverseSchema readerSchema (idSchema namesSchema)
-    existsInFolder path _ = error "not implemented"
         
