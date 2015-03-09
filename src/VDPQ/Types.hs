@@ -107,6 +107,9 @@ apSchema (Schema fa) (Schema a) = Schema (fa a)
 idSchema :: Schema a -> Schema' Identity a
 idSchema (Schema a) = Schema (Identity a)
 
+unidSchema :: Schema' Identity a -> Schema a
+unidSchema (Schema (Identity a)) =  Schema a
+
 foldMapSchema :: (Monoid m, FoldableWithIndex i t) 
               => Schema (i -> a -> m)
               -> Schema' t a

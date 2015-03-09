@@ -225,13 +225,20 @@ instance (ToFolder a) => ToFolder (Schema a) where
                 writeFunc
        traverseSchema writeSchema (idSchema pathSchema) --ugly! 
        -- ...
+       --
+       let writeFunc2 path _ x = writeToFolder path x
+           writeSchema2 = Schema
+              writeFunc2     
+           writeSchema3 = writeSchema2 `apSchema` pathSchema
+       traverseSchema writeSchema3 (idSchema s) --ugly! 
        return ()
             
 
 instance (FromFolder a) => FromFolder (Schema a) where
-    readFromFolder path = undefined
+    readFromFolder path = do
+        let traverseX _ name = readFromFolder (path <> fromString name)  
+            readerSchema = Schema
+                traverseX
+        unidSchema <$> traverseSchema readerSchema (idSchema namesSchema)
     existsInFolder path _ = error "not implemented"
---        let exists name = isDirectory (path <> fromString name)
---            existsSchema = Schema exists
---        boolSchema <- existsSchema `apSchema` namesSchema
         
