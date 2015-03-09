@@ -104,6 +104,9 @@ apSchema :: Schema (a -> a')
          -> Schema a'
 apSchema (Schema fa) (Schema a) = Schema (fa a)
 
+idSchema :: Schema a -> Schema' Identity a
+idSchema (Schema a) = Schema (Identity a)
+
 foldMapSchema :: (Monoid m, FoldableWithIndex i t) 
               => Schema (i -> a -> m)
               -> Schema' t a
@@ -112,6 +115,7 @@ foldMapSchema (Schema fa) (Schema a) = ifoldMap fa a
 
 namesSchema :: Schema String
 namesSchema = Schema "vdp"
+
 -- boilerplate end.
 
 type Plan_ = Schema' (Map String) (VDPQuery Maybe)
@@ -124,7 +128,7 @@ instance ToJSON Plan_ where
 
 type Plan = Schema' (Map String) (VDPQuery Identity)
 
-
+data Timeout = Timeout deriving (Show)
 
 
 

@@ -50,6 +50,11 @@ data Command =
 defaultPlanFile :: String
 defaultPlanFile = "plan.json"
 
+type Errors r = Either Timeout (Either ResponseError r)
+
+type Responses = Schema' (Map String)
+                         (Errors VDPResponse)
+
 parserInfo' :: O.ParserInfo Command  
 parserInfo' = info' parser' "This is the main prog desc"
   where

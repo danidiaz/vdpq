@@ -32,6 +32,7 @@ import qualified Data.Set as S
 import Data.Aeson
 import Data.Aeson.Encode.Pretty
 import qualified Data.Foldable as F
+import qualified Data.Traversable as T
 import qualified Data.Text as T
 --import qualified Data.Text.Lazy.IO as TLIO
 --import qualified Data.ByteString as B
@@ -100,7 +101,6 @@ newtype Seconds = Seconds Int
 toMicros :: Seconds -> Int
 toMicros (Seconds s) = s * 10^(6::Int)
 
-data Timeout = Timeout deriving (Show)
 
 withTimeout :: Seconds 
             -> (i -> a -> IO b) 
@@ -182,7 +182,7 @@ instance FromFolder ResponseError where
 
 
 vdpResponseFileNames :: (F.FilePath,F.FilePath)
-vdpResponseFileNames = ("schema.json","data.json")
+vdpResponseFileNames = ("vdp.schema.json","vdp.data.json")
 
 instance ToFolder VDPResponse where
     writeToFolder path (VDPResponse s d) =  
@@ -196,4 +196,42 @@ instance FromFolder VDPResponse where
         let (sf,_) = vdpResponseFileNames in F.isFile (path <> sf) 
 
 
+instance (ToFolder a) => ToFolder (Map String a) where
+    writeToFolder path m =  
+        let writerfunc = \i x -> do
+                let path' = path <> fromString i
+                F.createDirectory False path'
+                writeToFolder path' x
+        in itraverse_ writerfunc m  
 
+instance (FromFolder a) => FromFolder (Map String a) where
+    readFromFolder path = do
+        allContents <- F.listDirectory path
+        folders <- filterM F.isDirectory allContents
+        let mkPair f = (,) (show (F.filename f)) <$> readFromFolder f
+        pairs <- T.mapM mkPair folders
+        return (Data.Map.fromList pairs)
+    existsInFolder _ _ = return True
+
+
+instance (ToFolder a) => ToFolder (Schema a) where
+    writeToFolder path s = do
+       let calcPath x = path <> fromString x
+           calcPathSchema = Schema
+               calcPath
+           pathSchema = calcPathSchema `apSchema` namesSchema
+           writeFunc _ path = F.createDirectory False path
+           writeSchema = Schema
+                writeFunc
+       traverseSchema writeSchema (idSchema pathSchema) --ugly! 
+       -- ...
+       return ()
+            
+
+instance (FromFolder a) => FromFolder (Schema a) where
+    readFromFolder path = undefined
+    existsInFolder path _ = error "not implemented"
+--        let exists name = isDirectory (path <> fromString name)
+--            existsSchema = Schema exists
+--        boolSchema <- existsSchema `apSchema` namesSchema
+        
