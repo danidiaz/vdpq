@@ -39,12 +39,13 @@ import VDPQ.IO
 
 data Command = 
     Example
-  | Query String FilePath
-  | Report
+  | Query FilePath String 
+  | Report String
   | Cat
   | Collate
   | Diff
   | Pretty FilePath
+  | Debug FilePath
   deriving (Show)   
 
 defaultPlanFile :: String
@@ -61,15 +62,18 @@ parserInfo' = info' parser' "This is the main prog desc"
     parser' = (O.subparser . foldMap command') 
         [ ("example", "Generate example plan", pure Example)
         , ("query", "Perform queries and save the responses", queryP)
-        , ("report", "Report on responses", pure Report) 
+        , ("report", "Report on responses", reportP) 
         , ("cat", "Show set of responses", pure Cat) 
         , ("collate", "Collate two sets of responses", pure Collate) 
         , ("diff", "Compare two responses", pure Diff) 
         , ("pretty", "Print queries", prettyP) 
+        , ("debug", "Debug queries", debugP) 
         ] 
 
-    queryP = Query <$> destFolderArg <*> planOpt
+    queryP = Query <$> planOpt <*> destFolderArg 
     prettyP = Pretty <$> planOpt
+    debugP = Debug <$> planOpt
+    reportP = Report <$> destFolderArg  
 
     destFolderArg = O.strArgument 
         (mconcat 
@@ -100,7 +104,7 @@ main = withSocketsDo $ do
     plan <- O.execParser parserInfo'
     case plan of
         Example -> BL.putStr (encodePretty examplePlan) 
-        Query folder planfile -> do
+        Query planfile folder -> do
             result <- runExceptT $ do
                 plan <- defaultFillPlan <$> loadPlan (fromString planfile)
                 sem <- liftIO (newQSem 2)
@@ -121,9 +125,17 @@ main = withSocketsDo $ do
                         basicExecutor
                 result <- (liftIO . runConcurrently)
                     (traverseSchema decoratedExecutor plan)
-                let resultMap = view vdp result 
-                liftIO (print resultMap)
-                tryAnyS (F.createDirectory False (fromString folder))
+                let folder' = fromString folder
+                --liftIO (print resultMap)
+                tryAnyS (F.createDirectory False folder')
+                liftIO (writeToFolder folder' result)
+            case result of
+                Left msg -> putStrLn msg
+                Right _ -> return ()
+        Report folder  -> do
+            result <- runExceptT $ do
+                r :: Responses <- liftIO (readFromFolder (fromString folder))
+                return ()
             case result of
                 Left msg -> putStrLn msg
                 Right _ -> return ()

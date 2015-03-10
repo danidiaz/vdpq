@@ -16,6 +16,8 @@ module VDPQ.IO
     ,   withConc
     ,   runVDPQuery 
     ,   basicExecutor
+    ,   FromFolder(..)
+    ,   ToFolder(..)
     ) where
 
 import VDPQ
