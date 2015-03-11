@@ -1,6 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE UndecidableInstances #-}
 module VDPQ 
     (
         module VDPQ.Types
@@ -13,6 +15,7 @@ module VDPQ
     ,   fillPlan
     ,   defaultFillPlan
     ,   buildVDPURLPair 
+    ,   Reportable(..)
     ) where
 
 import VDPQ.Types
@@ -111,4 +114,21 @@ instance Reportable VDPResponse where
             Null -> ([],"Empty result.") : []
             _ -> []
 
+instance Reportable Timeout where 
+    getReport _ = ([],"Timeout.") : []
 
+instance Reportable ResponseError where 
+    getReport (ResponseError errmsg) = [([],"Error: " ++ take 20 errmsg)]
+ 
+instance (FoldableWithIndex String f, Reportable a) => Reportable (f a) where 
+    getReport = ifoldMap $ \i x ->
+        let addTag (tags,msg) = (i:tags,msg)
+        in fmap addTag (getReport x)
+
+instance (Reportable a) => Reportable (Schema a) where
+    getReport s = 
+        let addTag name (tags,msg) = (name:tags,msg)
+            foldfunc name = fmap (addTag name) . getReport  
+            reportSchema = Schema
+                foldfunc
+        in foldMapSchema (reportSchema `apSchema` namesSchema) s

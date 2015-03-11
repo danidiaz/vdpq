@@ -18,6 +18,7 @@ module VDPQ.IO
     ,   basicExecutor
     ,   FromFolder(..)
     ,   ToFolder(..)
+    ,   writeReport
     ) where
 
 import VDPQ
@@ -234,3 +235,10 @@ instance (FromFolder a) => FromFolder (Schema a) where
                 readFunc
         traverseSchema readerSchema namesSchema
         
+
+writeReport :: Reportable a => a -> IO ()
+writeReport a =   
+    F.forM_ lines' (\(tag,text) -> putStrLn (tag ++ "  " ++ text))
+  where
+    lines' = fmap (first (mconcat . intersperse "/")) (getReport a)
+
