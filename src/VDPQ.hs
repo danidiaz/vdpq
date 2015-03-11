@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE FlexibleInstances #-}
 module VDPQ 
     (
         module VDPQ.Types
@@ -16,9 +17,11 @@ module VDPQ
 
 import VDPQ.Types
 
+import Data.Aeson
 import Data.Maybe
 import Data.Monoid
 import Data.String
+import Data.Bifoldable
 import qualified Data.Text as T
 import Data.Map
 import Control.Applicative
@@ -94,3 +97,18 @@ buildVDPURLPair query = ((schemaurl, schemaopts), (dataurl, dataopts))
         (fromString (_vdpPassword server))
 
     filters = toListOf (whereClause . folded . to fromString) query
+
+
+class Reportable a where
+    getReport :: a -> [([String],String)]
+
+instance (Bifoldable f, Reportable a, Reportable b) => Reportable (f a b) where
+    getReport = bifoldMap getReport getReport 
+
+instance Reportable VDPResponse where
+    getReport (VDPResponse _ data') =
+        case data' of
+            Null -> ([],"Empty result.") : []
+            _ -> []
+
+
