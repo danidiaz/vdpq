@@ -2,8 +2,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE ScopedTypeVariables #-}
---{-# LANGUAGE OverloadedLists #-}
---{-# LANGUAGE TypeFamilies #-}
 
 module Main (main) where
 
@@ -24,7 +22,6 @@ import Control.Concurrent.QSem
 import Control.Concurrent.MVar
 
 import Pipes
---import qualified Pipes.ByteString as B
 import Pipes.Aeson (encodeObject)
 
 import qualified Options.Applicative as O
@@ -37,6 +34,34 @@ import qualified Filesystem.Path.CurrentOS as F
 import VDPQ.IO
 
 
+defaultPlanFile :: String
+defaultPlanFile = "plan.json"
+
+type Errors r = Either Timeout (Either ResponseError r)
+
+type Responses = Schema (Map String (Errors VDPResponse))
+
+performQueries :: Int -> Seconds -> Plan -> IO Responses 
+performQueries semsize seconds plan = do
+        sem <- liftIO (newQSem semsize)
+        names <- liftIO (newMVar S.empty)
+        let decorator name = 
+                itraverse .
+                withConc sem .
+                withLog names name .
+                withTimeout seconds
+            -- this works thanks to let-polymorphism
+            decoratedExecutor = 
+                (Schema
+                    decorator)
+                `apSchema`
+                namesSchema
+                `apSchema`
+                basicExecutor
+        runConcurrently
+            (traverseSchema decoratedExecutor plan)
+
+
 data Command = 
     Example
   | Query FilePath String 
@@ -47,13 +72,6 @@ data Command =
   | Pretty FilePath
   | Debug FilePath
   deriving (Show)   
-
-defaultPlanFile :: String
-defaultPlanFile = "plan.json"
-
-type Errors r = Either Timeout (Either ResponseError r)
-
-type Responses = Schema (Map String (Errors VDPResponse))
 
 parserInfo' :: O.ParserInfo Command  
 parserInfo' = info' parser' "This is the main prog desc"
@@ -96,9 +114,6 @@ parserInfo' = info' parser' "This is the main prog desc"
     command' (cmdName,desc,parser) = 
         O.command cmdName (info' parser desc)
 
-timeLimit :: Seconds
-timeLimit = Seconds 10
-
 main :: IO ()
 main = withSocketsDo $ do
     plan <- O.execParser parserInfo'
@@ -107,26 +122,9 @@ main = withSocketsDo $ do
         Query planfile folder -> do
             result <- runExceptT $ do
                 plan <- defaultFillPlan <$> loadPlan (fromString planfile)
-                sem <- liftIO (newQSem 2)
-                names <- liftIO (newMVar S.empty)
                 let seconds = Seconds 7
-                    decorator name = 
-                        itraverse .
-                        withConc sem .
-                        withLog names name .
-                        withTimeout seconds
-                    -- this works thanks to let-polymorphism
-                    decoratedExecutor = 
-                        (Schema
-                            decorator)
-                        `apSchema`
-                        namesSchema
-                        `apSchema`
-                        basicExecutor
-                result <- (liftIO . runConcurrently)
-                    (traverseSchema decoratedExecutor plan)
+                result <- liftIO $ performQueries 2 seconds plan 
                 let folder' = fromString folder
-                --liftIO (print resultMap)
                 tryAnyS (F.createDirectory False folder')
                 liftIO (writeToFolder folder' result)
             case result of
@@ -134,8 +132,9 @@ main = withSocketsDo $ do
                 Right _ -> return ()
         Report folder  -> do
             result <- runExceptT $ do
-                r :: Responses <- liftIO (readFromFolder (fromString folder))
-                return ()
+                r :: Responses <- liftIO $ readFromFolder (fromString folder)
+                let report = responseReport r
+                liftIO $ writeReport report
             case result of
                 Left msg -> putStrLn msg
                 Right _ -> return ()

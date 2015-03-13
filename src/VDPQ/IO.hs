@@ -130,10 +130,11 @@ withConc :: QSem -> (i -> a -> IO b) -> (i -> a -> Concurrently b)
 withConc sem f = \i a -> Concurrently 
     (bracket_ (waitQSem sem) (signalQSem sem) (f i a))
 
+type Executor = Schema (String -> 
+                        VDPQuery Identity -> 
+                        IO (Either ResponseError VDPResponse))
 
-basicExecutor :: Schema (String -> 
-                         VDPQuery Identity -> 
-                         IO (Either ResponseError VDPResponse))
+basicExecutor :: Executor
 basicExecutor = Schema
     (\_ -> runVDPQuery)
 
@@ -236,9 +237,8 @@ instance (FromFolder a) => FromFolder (Schema a) where
         traverseSchema readerSchema namesSchema
         
 
-writeReport :: Reportable a => a -> IO ()
-writeReport a =   
-    F.forM_ lines' (\(tag,text) -> putStrLn (tag ++ "  " ++ text))
-  where
-    lines' = fmap (first (mconcat . intersperse "/")) (getReport a)
+writeReport :: [ (String, String, String) ] -> IO ()
+writeReport =   
+    F.mapM_ (\(tag,test,text) -> 
+                putStrLn (tag ++ "/" ++ test ++ " " ++ take 20 text))
 

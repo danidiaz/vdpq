@@ -16,6 +16,7 @@ module VDPQ
     ,   defaultFillPlan
     ,   buildVDPURLPair 
     ,   Reportable(..)
+    ,   responseReport 
     ) where
 
 import VDPQ.Types
@@ -103,7 +104,7 @@ buildVDPURLPair query = ((schemaurl, schemaopts), (dataurl, dataopts))
 
 
 class Reportable a where
-    getReport :: a -> [([String],String)]
+    getReport :: a -> [String]
 
 instance (Bifoldable f, Reportable a, Reportable b) => Reportable (f a b) where
     getReport = bifoldMap getReport getReport 
@@ -111,24 +112,26 @@ instance (Bifoldable f, Reportable a, Reportable b) => Reportable (f a b) where
 instance Reportable VDPResponse where
     getReport (VDPResponse _ data') =
         case data' of
-            Null -> ([],"Empty result.") : []
+            Null -> ("Empty result.") : []
             _ -> []
 
 instance Reportable Timeout where 
-    getReport _ = ([],"Timeout.") : []
+    getReport _ = ("Timeout.") : []
 
 instance Reportable ResponseError where 
-    getReport (ResponseError errmsg) = [([],"Error: " ++ take 20 errmsg)]
- 
-instance (FoldableWithIndex String f, Reportable a) => Reportable (f a) where 
-    getReport = ifoldMap $ \i x ->
-        let addTag (tags,msg) = (i:tags,msg)
-        in fmap addTag (getReport x)
+    getReport (ResponseError errmsg) = ["Error: " ++ errmsg]
 
-instance (Reportable a) => Reportable (Schema a) where
-    getReport s = 
-        let addTag name (tags,msg) = (name:tags,msg)
-            foldfunc name = fmap (addTag name) . getReport  
-            reportSchema = Schema
-                foldfunc
-        in foldMapSchema (reportSchema `apSchema` namesSchema) s
+
+responseReport :: (FoldableWithIndex String f, Reportable a) 
+               => Schema (f a)
+               -> [(String,String,String)]
+responseReport response = 
+    let foldFunc = \name -> ifoldMap $ \test ->
+           fmap ((,,) name test) . getReport 
+        reportSchema = Schema
+            foldFunc        
+    in reportSchema `apSchema` namesSchema `foldMapSchema` response   
+
+
+
+
