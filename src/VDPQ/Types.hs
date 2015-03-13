@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -12,6 +13,7 @@ import Data.Map (Map)
 import Data.Monoid
 import Data.Aeson
 import Data.String
+import Data.Typeable
 import Data.Aeson.Types
 
 import Control.Applicative
@@ -70,13 +72,13 @@ data VDPResponse = VDPResponse
         _schema :: Value 
     ,   _data :: Value
     }
-    deriving (Show)
+    deriving (Show,Eq,Typeable)
 
 
 $(makeLenses ''VDPResponse)
 
 
-newtype ResponseError = ResponseError String deriving (Show)
+newtype ResponseError = ResponseError String deriving (Show,Eq,Typeable)
 
 instance IsString ResponseError where
     fromString = ResponseError
@@ -126,9 +128,7 @@ instance ToJSON Plan_ where
 
 type Plan = Schema (Map String (VDPQuery Identity))
 
-data Timeout = Timeout deriving (Show)
-
-
+data Timeout = Timeout deriving (Show,Eq,Typeable)
 
 
 

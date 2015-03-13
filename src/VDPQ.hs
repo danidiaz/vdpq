@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module VDPQ 
     (
         module VDPQ.Types
@@ -26,12 +27,13 @@ import Data.Maybe
 import Data.Monoid
 import Data.String
 import Data.Bifoldable
+import Data.Typeable
 import qualified Data.Text as T
 import Data.Map
 import Control.Applicative
 import Control.Lens
 
-import Network.Wreq
+import Network.Wreq hiding (Proxy)
 
 
 defaultVDPServer :: VDPServer
@@ -133,5 +135,37 @@ responseReport response =
     in reportSchema `apSchema` namesSchema `foldMapSchema` response   
 
 
+class (Eq a, Typeable a) => Diffable a where
+    getDiff :: a -> a -> [String]
+    getDiff a1 a2  = 
+        if a1 == a2
+            then []
+            else ["Something changed."]
 
+instance (Diffable a) => Reportable (a,a) where
+    getReport (a,b) = getDiff a b     
 
+typeChangeMsg :: (Typeable a, Typeable b) => Proxy a -> Proxy b -> String
+typeChangeMsg p1 p2 = 
+    "Was " ++ (typeName p1) ++
+    "but now is " ++ (typeName p2) ++
+    "."
+      where
+        typeName p = showsTypeRep (typeRep p) []
+
+instance (Diffable a, Diffable b) => Diffable (Either a b) where
+    getDiff (Left a1) (Left a2) = getDiff a1 a2
+    getDiff (Right b1) (Right b2) = getDiff b1 b2
+    getDiff (Left _) (Right _) = 
+        [typeChangeMsg (Proxy::Proxy a) (Proxy::Proxy b)]
+    getDiff (Right _) (Left _) = 
+        [typeChangeMsg (Proxy::Proxy b) (Proxy::Proxy a)]
+
+instance Diffable Timeout
+
+instance Diffable ResponseError
+
+instance Diffable VDPResponse
+
+foo :: (Timeout,Timeout) -> [String]
+foo = getReport 
