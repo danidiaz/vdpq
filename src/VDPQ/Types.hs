@@ -86,7 +86,7 @@ data Schema a = Schema
     {
         _vdp :: a
     } 
-    deriving (Generic)
+    deriving (Generic, Show)
 
 $(makeLenses ''Schema)
 

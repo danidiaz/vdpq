@@ -212,7 +212,7 @@ instance (FromFolder a) => FromFolder (Map String a) where
     readFromFolder path = do
         allContents <- F.listDirectory path
         folders <- filterM F.isDirectory allContents
-        let mkPair f = (,) (show (F.filename f)) <$> readFromFolder f
+        let mkPair f = (,) (F.encodeString (F.filename f)) <$> readFromFolder f
         pairs <- T.mapM mkPair folders
         return (Data.Map.fromList pairs)
 
@@ -240,5 +240,5 @@ instance (FromFolder a) => FromFolder (Schema a) where
 writeReport :: [ (String, String, String) ] -> IO ()
 writeReport =   
     F.mapM_ (\(tag,test,text) -> 
-                putStrLn (tag ++ "/" ++ test ++ " " ++ take 20 text))
+                putStrLn (tag ++ "/" ++ test ++ "\n\t" ++ take 70 text))
 
