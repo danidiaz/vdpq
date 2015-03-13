@@ -45,21 +45,23 @@ performQueries :: Int -> Seconds -> Plan -> IO Responses
 performQueries semsize seconds plan = do
         sem <- liftIO (newQSem semsize)
         names <- liftIO (newMVar S.empty)
-        let decorator name = 
+        let decoratorFunc name = 
                 itraverse .
                 withConc sem .
                 withLog names name .
                 withTimeout seconds
             -- this works thanks to let-polymorphism
-            decoratedExecutor = 
+            decorator = 
                 (Schema
-                    decorator)
-                `apSchema`
-                namesSchema
-                `apSchema`
-                basicExecutor
-        runConcurrently
-            (traverseSchema decoratedExecutor plan)
+                    decoratorFunc)
+        runConcurrently $
+            decorator
+            `apSchema`
+            namesSchema
+            `apSchema`
+            basicExecutor
+            `traverseSchema`
+            plan
 
 
 data Command = 

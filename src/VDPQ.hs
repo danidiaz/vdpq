@@ -124,10 +124,10 @@ instance Reportable ResponseError where
 
 responseReport :: (FoldableWithIndex String f, Reportable a) 
                => Schema (f a)
-               -> [(String,String,String)]
+               -> [((String,String),[String])]
 responseReport response = 
     let foldFunc = \name -> ifoldMap $ \test ->
-           fmap ((,,) name test) . getReport 
+           pure . (,) (name,test) . getReport 
         reportSchema = Schema
             foldFunc        
     in reportSchema `apSchema` namesSchema `foldMapSchema` response   

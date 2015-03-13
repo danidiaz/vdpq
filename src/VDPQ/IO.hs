@@ -237,8 +237,10 @@ instance (FromFolder a) => FromFolder (Schema a) where
         traverseSchema readerSchema namesSchema
         
 
-writeReport :: [ (String, String, String) ] -> IO ()
-writeReport =   
-    F.mapM_ (\(tag,test,text) -> 
-                putStrLn (tag ++ "/" ++ test ++ "\n\t" ++ take 70 text))
+writeReport :: [((String,String),[String])] -> IO ()
+writeReport entries =   
+    F.forM_ entries $ \((tag,test), report) -> do
+        putStrLn (tag ++ "/" ++ test)
+        F.forM_ report $ \str ->
+            putStrLn ("\t" ++ take 80 str)
 
