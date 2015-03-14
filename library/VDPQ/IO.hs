@@ -19,6 +19,7 @@ module VDPQ.IO
     ,   FromFolder(..)
     ,   ToFolder(..)
     ,   writeReport
+    ,   F.createDirectory 
     ) where
 
 import VDPQ

@@ -14,12 +14,11 @@ import qualified Data.Foldable as F
 import Control.Applicative
 import Control.Lens
 import Control.Concurrent
-import Control.Concurrent.Async
+import Control.Concurrent.Async (runConcurrently)
 
 import qualified Options.Applicative as O
 
 import Network
-import qualified Filesystem as F
 
 import System.IO
 
@@ -127,7 +126,7 @@ main = withSocketsDo $ do
             let seconds = Seconds 7
             result <- performQueries 2 seconds plan' 
             let folder' = fromString folder
-            F.createDirectory False folder'
+            createDirectory False folder'
             writeToFolder folder' result
         Report folder  -> do
             r :: Responses <- readFromFolder (fromString folder)
