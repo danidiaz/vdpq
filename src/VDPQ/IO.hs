@@ -1,4 +1,3 @@
-{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -8,6 +7,7 @@ module VDPQ.IO
     (
         module VDPQ
     ,   tryAnyS
+    ,   hWriteJSON
     ,   loadJSON
     ,   loadPlan
     ,   Seconds(..)
@@ -23,13 +23,11 @@ module VDPQ.IO
 
 import VDPQ
 
-import BasePrelude hiding ((%))
-import MTLPrelude
-
 import Data.Bifoldable
 import Data.List
 import Data.Monoid
 import Data.Map
+import Data.String
 import Data.Proxy
 import qualified Data.Set as S
 import Data.Aeson
@@ -37,43 +35,44 @@ import Data.Aeson.Encode.Pretty
 import qualified Data.Foldable as F
 import qualified Data.Traversable as T
 import qualified Data.Text as T
---import qualified Data.Text.Lazy.IO as TLIO
---import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
 
+import Control.Concurrent
+import Control.Applicative
 import Control.Monad
+import Control.Monad.IO.Class
 import Control.Monad.Trans.Except
 import Control.Lens
 import Control.Concurrent.Async
-import Control.Concurrent.QSem
-import Control.Concurrent.MVar
 
-import System.Directory
-import System.IO
-import qualified Network.Wreq as W
-
+import Control.Exception
 import Control.Exception.Enclosed
+
+import qualified Network.Wreq as W
 
 import qualified Filesystem as F
 import qualified Filesystem.Path.CurrentOS as F
 
+import System.IO
+
 tryAnyS :: (Functor m, MonadIO m) => IO a -> ExceptT String m a
 tryAnyS = withExceptT show . ExceptT . liftIO . tryAny
 
-loadJSON :: FromJSON a => F.FilePath -> ExceptT String IO a
-loadJSON path = 
-    withExceptT ("Loading JSON: "++) $ do
-        bytes <- tryAnyS (F.readFile path)
-        ExceptT (return (eitherDecodeStrict' bytes))
+loadJSON :: FromJSON a => F.FilePath -> IO a
+loadJSON path = do 
+    bytes <- F.readFile path
+    let e = eitherDecodeStrict' bytes
+    case e of 
+        Left err -> ioError (userError err)
+        Right p -> return p
 
-loadJSON' :: FromJSON a => F.FilePath -> IO a
-loadJSON' path = runExceptT (loadJSON path) >>= return . either error id 
+hWriteJSON :: ToJSON a => Handle -> a -> IO () 
+hWriteJSON h =  BL.hPutStr h . encodePretty 
 
 writeJSON :: ToJSON a => a -> F.FilePath -> IO () 
-writeJSON a path  = F.withFile path F.WriteMode $ \h ->
-    (BL.hPutStr h . encodePretty) a
+writeJSON a path  = F.withFile path F.WriteMode $ \h -> hWriteJSON h a
 
-loadPlan :: F.FilePath -> ExceptT String IO Plan_
+loadPlan :: F.FilePath -> IO Plan_
 loadPlan  = loadJSON 
 
 -- Things that can go wrong:
@@ -116,10 +115,10 @@ withLog :: MVar (S.Set String)
         -> (String -> a -> IO b)
         -> (String -> a -> IO b)
 withLog pending prefix f i a =
-    bracket_ (op '+' (const id) S.insert) (op '-' S.delete (const id)) (f i a)
+    bracket_ (go '+' (const id) S.insert) (go '-' S.delete (const id)) (f i a)
   where
     name = prefix <> "/" <> i
-    op c enter exit = modifyMVar_ pending $ \names -> do
+    go c enter exit = modifyMVar_ pending $ \names -> do
         let names' = enter name names
         hPutStr stderr ([c] <> name)
         hPutStrLn stderr (" " <> intercalate "," (F.toList names'))
@@ -198,7 +197,7 @@ instance ToFolder VDPResponse where
 
 instance FromFolder VDPResponse where
     readFromFolder path = let (sf,df) = vdpResponseFileNames in
-         VDPResponse <$> loadJSON' (path <> sf) <*> loadJSON' (path <> df)    
+         VDPResponse <$> loadJSON (path <> sf) <*> loadJSON (path <> df)    
 
 instance (ToFolder a) => ToFolder (Map String a) where
     writeToFolder path m =  
@@ -218,14 +217,14 @@ instance (FromFolder a) => FromFolder (Map String a) where
 
 
 instance (ToFolder a) => ToFolder (Schema a) where
-    writeToFolder path schema = do
+    writeToFolder path s = do
        let calcPath = (<>) path . fromString 
            pathSchema = uniformSchema calcPath `apSchema` namesSchema
-       let writeFunc path = F.createDirectory False path
+       let writeFunc = F.createDirectory False
        _ <- traverseSchema (uniformSchema writeFunc) pathSchema 
        let writeSchema = Schema
               writeToFolder 
-       _ <- traverseSchema (writeSchema `apSchema` pathSchema) schema
+       _ <- traverseSchema (writeSchema `apSchema` pathSchema) s
        return ()
             
 

@@ -1,25 +1,26 @@
-{-# LANGUAGE NoImplicitPrelude #-}
+--{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Main (main) where
 
-import BasePrelude
-import MTLPrelude
-
+import Data.String
+import Data.Monoid
 import Data.Map.Strict
 import qualified Data.Set as S
-import Data.Aeson.Encode.Pretty
-import qualified Data.ByteString.Lazy as BL
+import qualified Data.Foldable as F
 
+import Control.Applicative
 import Control.Lens
+import Control.Concurrent
 import Control.Concurrent.Async
 
 import qualified Options.Applicative as O
 
 import Network
 import qualified Filesystem as F
+
 import System.IO
 
 import VDPQ.IO
@@ -34,8 +35,8 @@ type Responses = Schema (Map String (Errors VDPResponse))
 
 performQueries :: Int -> Seconds -> Plan -> IO Responses 
 performQueries semsize seconds plan = do
-        sem <- liftIO (newQSem semsize)
-        names <- liftIO (newMVar S.empty)
+        sem <- newQSem semsize
+        names <- newMVar S.empty
         let decoratorFunc name = 
                 itraverse .
                 withConc sem .
@@ -75,7 +76,7 @@ parserInfo' :: O.ParserInfo Command
 parserInfo' = info' parser' "This is the main prog desc"
   where
     parser' :: O.Parser Command 
-    parser' = (O.subparser . foldMap command') 
+    parser' = (O.subparser . F.foldMap command') 
         [ ("example", "Generate example plan", pure Example)
         , ("query", "Perform queries and save the responses", queryP)
         , ("report", "Report on responses", reportP) 
@@ -113,36 +114,31 @@ parserInfo' = info' parser' "This is the main prog desc"
     command' (cmdName,desc,parser) = 
         O.command cmdName (info' parser desc)
 
-withOops :: ExceptT String IO a -> IO ()
-withOops = runExceptT >=> mapMOf_ _Left printErrAndExit
-  where
-    printErrAndExit err = hPutStrLn stderr err *> exitFailure
-
-runnablePlan :: FilePath -> ExceptT String IO Plan  
+runnablePlan :: FilePath -> IO Plan  
 runnablePlan planfile = defaultFillPlan <$> loadPlan (fromString planfile)
 
 main :: IO ()
 main = withSocketsDo $ do
     plan <- O.execParser parserInfo'
     case plan of
-        Example -> BL.putStr (encodePretty examplePlan) 
-        Query planfile folder -> withOops $ do
+        Example -> hWriteJSON stdout examplePlan 
+        Query planfile folder -> do
             plan' <- runnablePlan planfile
             let seconds = Seconds 7
-            result <- liftIO $ performQueries 2 seconds plan' 
+            result <- performQueries 2 seconds plan' 
             let folder' = fromString folder
-            tryAnyS $ F.createDirectory False folder'
-            liftIO $ writeToFolder folder' result
-        Report folder  -> withOops $ do
-            r :: Responses <- liftIO $ readFromFolder (fromString folder)
-            liftIO $ writeReport (reportSchema r)
-        Collate folder1 folder2 -> withOops $ do
-            r1 :: Responses <- liftIO $ readFromFolder (fromString folder1)
-            r2 :: Responses <- liftIO $ readFromFolder (fromString folder2)
-            liftIO $ writeReport (diffReport r1 r2)
-        Pretty planfile -> withOops $ do
-            plan' <- defaultFillPlan <$> loadPlan (fromString planfile)
-            iforOf_ (vdp . ifolded) plan' $ \k q -> liftIO $ do
+            F.createDirectory False folder'
+            writeToFolder folder' result
+        Report folder  -> do
+            r :: Responses <- readFromFolder (fromString folder)
+            writeReport (reportSchema r)
+        Collate folder1 folder2 -> do
+            r1 :: Responses <- readFromFolder (fromString folder1)
+            r2 :: Responses <- readFromFolder (fromString folder2)
+            writeReport (diffReport r1 r2)
+        Pretty planfile -> do
+            plan' <- runnablePlan planfile
+            iforOf_ (vdp . ifolded) plan' $ \k q -> do
                 print k
                 let (schemaurl,dataurl) = buildVDPURLPair q
                 print schemaurl
