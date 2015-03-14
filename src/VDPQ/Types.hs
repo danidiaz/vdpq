@@ -130,5 +130,5 @@ type Plan = Schema (Map String (VDPQuery Identity))
 
 data Timeout = Timeout deriving (Show,Eq,Typeable)
 
-
+data Pair a = Pair a a deriving (Show, Eq, Functor) 
 

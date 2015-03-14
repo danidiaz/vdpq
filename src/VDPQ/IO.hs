@@ -15,7 +15,7 @@ module VDPQ.IO
     ,   withLog
     ,   withConc
     ,   runVDPQuery 
-    ,   basicExecutor
+    ,   executorSchema
     ,   FromFolder(..)
     ,   ToFolder(..)
     ,   writeReport
@@ -134,8 +134,8 @@ type Executor = Schema (String ->
                         VDPQuery Identity -> 
                         IO (Either ResponseError VDPResponse))
 
-basicExecutor :: Executor
-basicExecutor = Schema
+executorSchema :: Executor
+executorSchema = Schema
     (\_ -> runVDPQuery)
 
 

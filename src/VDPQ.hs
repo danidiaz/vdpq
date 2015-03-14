@@ -17,7 +17,7 @@ module VDPQ
     ,   defaultFillPlan
     ,   buildVDPURLPair 
     ,   Reportable(..)
-    ,   responseReport 
+    ,   reportSchema 
     ) where
 
 import VDPQ.Types
@@ -29,7 +29,7 @@ import Data.String
 import Data.Bifoldable
 import Data.Typeable
 import qualified Data.Text as T
-import Data.Map
+import Data.Map.Strict
 import Control.Applicative
 import Control.Lens
 
@@ -44,7 +44,7 @@ defaultTemplateName = "_template"
 
 examplePlan :: Plan_ 
 examplePlan = Schema
-    (Data.Map.fromList
+    (Data.Map.Strict.fromList
         [ (defaultTemplateName, VDPQuery "fooview" (Just "where 1 = 1") (Just defaultVDPServer))
         , ("q1", VDPQuery "fooview" (Just "where 1 = 1") Nothing)
         , ("q2", VDPQuery "barview" Nothing Nothing) 
@@ -123,17 +123,19 @@ instance Reportable Timeout where
 instance Reportable ResponseError where 
     getReport (ResponseError errmsg) = ["Error: " ++ errmsg]
 
+instance Reportable String where 
+    getReport str = [str]
 
-responseReport :: (FoldableWithIndex String f, Reportable a) 
-               => Schema (f a)
-               -> [((String,String),[String])]
-responseReport response = 
+reportSchema :: (FoldableWithIndex String f, Reportable a) 
+             => Schema (f a)
+             -> [((String,String),[String])]
+reportSchema response = 
     let foldFunc = \name -> ifoldMap $ \test ->
            pure . (,) (name,test) . getReport 
         reportSchema = Schema
             foldFunc        
     in reportSchema `apSchema` namesSchema `foldMapSchema` response   
-
+    
 
 class (Eq a, Typeable a) => Diffable a where
     getDiff :: a -> a -> [String]
@@ -142,8 +144,8 @@ class (Eq a, Typeable a) => Diffable a where
             then []
             else ["Something changed."]
 
-instance (Diffable a) => Reportable (a,a) where
-    getReport (a,b) = getDiff a b     
+instance (Diffable a) => Reportable (Pair a) where
+    getReport (Pair a1 a2) = getDiff a1 a2     
 
 typeChangeMsg :: (Typeable a, Typeable b) => Proxy a -> Proxy b -> String
 typeChangeMsg p1 p2 = 
@@ -166,6 +168,3 @@ instance Diffable Timeout
 instance Diffable ResponseError
 
 instance Diffable VDPResponse
-
-foo :: (Timeout,Timeout) -> [String]
-foo = getReport 

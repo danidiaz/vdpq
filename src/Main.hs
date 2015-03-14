@@ -8,28 +8,19 @@ module Main (main) where
 import BasePrelude
 import MTLPrelude
 
-import Data.Map
+import Data.Map.Strict
 import qualified Data.Set as S
-import Data.Aeson
 import Data.Aeson.Encode.Pretty
-import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.Text.IO as T
 
 import Control.Lens
 import Control.Concurrent.Async
-import Control.Concurrent.QSem
-import Control.Concurrent.MVar
-
-import Pipes
-import Pipes.Aeson (encodeObject)
 
 import qualified Options.Applicative as O
 
 import Network
-
 import qualified Filesystem as F
-import qualified Filesystem.Path.CurrentOS as F
+import System.IO
 
 import VDPQ.IO
 
@@ -50,26 +41,31 @@ performQueries semsize seconds plan = do
                 withConc sem .
                 withLog names name .
                 withTimeout seconds
-            -- this works thanks to let-polymorphism
-            decorator = 
-                (Schema
-                    decoratorFunc)
+            decoratorSchema = Schema
+                decoratorFunc
         runConcurrently $
-            decorator
+            decoratorSchema
             `apSchema`
             namesSchema
             `apSchema`
-            basicExecutor
+            executorSchema
             `traverseSchema`
             plan
 
+diffReport :: Responses -> Responses -> [((String,String),[String])]
+diffReport oldr newr =
+    reportSchema (zipSchema `apSchema` oldr `apSchema` newr)
+  where
+    zipFunc = intersectionWith Pair
+    zipSchema = Schema
+        zipFunc 
 
 data Command = 
     Example
   | Query FilePath String 
   | Report String
   | Cat
-  | Collate
+  | Collate String String
   | Diff
   | Pretty FilePath
   | Debug FilePath
@@ -84,7 +80,7 @@ parserInfo' = info' parser' "This is the main prog desc"
         , ("query", "Perform queries and save the responses", queryP)
         , ("report", "Report on responses", reportP) 
         , ("cat", "Show set of responses", pure Cat) 
-        , ("collate", "Collate two sets of responses", pure Collate) 
+        , ("collate", "Collate two sets of responses", collateP) 
         , ("diff", "Compare two responses", pure Diff) 
         , ("pretty", "Print queries", prettyP) 
         , ("debug", "Debug queries", debugP) 
@@ -94,6 +90,7 @@ parserInfo' = info' parser' "This is the main prog desc"
     prettyP = Pretty <$> planOpt
     debugP = Debug <$> planOpt
     reportP = Report <$> destFolderArg  
+    collateP = Collate <$> destFolderArg <*> destFolderArg
 
     destFolderArg = O.strArgument 
         (mconcat 
@@ -116,40 +113,39 @@ parserInfo' = info' parser' "This is the main prog desc"
     command' (cmdName,desc,parser) = 
         O.command cmdName (info' parser desc)
 
+withOops :: ExceptT String IO a -> IO ()
+withOops = runExceptT >=> mapMOf_ _Left printErrAndExit
+  where
+    printErrAndExit err = hPutStrLn stderr err *> exitFailure
+
+runnablePlan :: FilePath -> ExceptT String IO Plan  
+runnablePlan planfile = defaultFillPlan <$> loadPlan (fromString planfile)
+
 main :: IO ()
 main = withSocketsDo $ do
     plan <- O.execParser parserInfo'
     case plan of
         Example -> BL.putStr (encodePretty examplePlan) 
-        Query planfile folder -> do
-            result <- runExceptT $ do
-                plan <- defaultFillPlan <$> loadPlan (fromString planfile)
-                let seconds = Seconds 7
-                result <- liftIO $ performQueries 2 seconds plan 
-                let folder' = fromString folder
-                tryAnyS (F.createDirectory False folder')
-                liftIO (writeToFolder folder' result)
-            case result of
-                Left msg -> putStrLn msg
-                Right _ -> return ()
-        Report folder  -> do
-            result <- runExceptT $ do
-                r :: Responses <- liftIO $ readFromFolder (fromString folder)
-                let report = responseReport r
-                liftIO $ writeReport report
-            case result of
-                Left msg -> putStrLn msg
-                Right _ -> return ()
-        Pretty planfile -> do
-            result <- runExceptT $ do
-                plan <- defaultFillPlan <$> loadPlan (fromString planfile)
-                iforOf_ (vdp . ifolded) plan $ \k q -> liftIO $ do
-                    print k
-                    let (schemaurl,dataurl) = buildVDPURLPair q
-                    print schemaurl
-                    print dataurl
-            case result of
-                Left msg -> putStrLn msg
-                Right _ -> return ()
+        Query planfile folder -> withOops $ do
+            plan' <- runnablePlan planfile
+            let seconds = Seconds 7
+            result <- liftIO $ performQueries 2 seconds plan' 
+            let folder' = fromString folder
+            tryAnyS $ F.createDirectory False folder'
+            liftIO $ writeToFolder folder' result
+        Report folder  -> withOops $ do
+            r :: Responses <- liftIO $ readFromFolder (fromString folder)
+            liftIO $ writeReport (reportSchema r)
+        Collate folder1 folder2 -> withOops $ do
+            r1 :: Responses <- liftIO $ readFromFolder (fromString folder1)
+            r2 :: Responses <- liftIO $ readFromFolder (fromString folder2)
+            liftIO $ writeReport (diffReport r1 r2)
+        Pretty planfile -> withOops $ do
+            plan' <- defaultFillPlan <$> loadPlan (fromString planfile)
+            iforOf_ (vdp . ifolded) plan' $ \k q -> liftIO $ do
+                print k
+                let (schemaurl,dataurl) = buildVDPURLPair q
+                print schemaurl
+                print dataurl
         _ -> putStrLn "foo"
     return ()
