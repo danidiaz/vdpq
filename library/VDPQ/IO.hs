@@ -41,13 +41,13 @@ import qualified Data.ByteString.Lazy as BL
 import Control.Concurrent
 import Control.Applicative
 import Control.Monad
-import Control.Monad.Catch
+--import qualified Control.Monad.Catch as C
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Except
 import Control.Lens
 import Control.Concurrent.Async
 
-import Control.Exception
+import Control.Exception 
 import Control.Exception.Enclosed
 
 import qualified Network.Wreq as W
@@ -81,7 +81,7 @@ loadPlan  = loadJSON
 --      connection error
 --      non-200, non-204 return codes
 --      decoding error
-safeGET :: (W.Response BL.ByteString -> Either String a) -> ExceptT String IO a -> (String, W.Options) ->  ExceptT String IO a
+safeGET :: FromJSON a => (W.Response BL.ByteString -> Either String a) -> ExceptT String IO a -> (String, W.Options) ->  ExceptT String IO a
 safeGET convert n204 (url,opts) =  do
     r <- tryAnyS (W.getWith opts url) 
     let status = view (W.responseStatus.W.statusCode) r
@@ -92,13 +92,13 @@ safeGET convert n204 (url,opts) =  do
                 ("Received HTTP status code: " <> show status)
             ExceptT (pure (convert r))
 
-jsonConvert ::W.Response BL.ByteString -> Either String Value 
-jsonConvert = bimap show (view W.responseBody) . catch . W.asValue
+jsonConvert :: FromJSON a => W.Response BL.ByteString -> Either String a 
+jsonConvert = bimap show (view W.responseBody) . W.asJSON
 
 runVDPQuery :: VDPQuery Identity -> IO (Either ResponseError VDPResponse)
 runVDPQuery query = 
     let (schemaurl,dataurl) = buildVDPURLPair query
-        jsonGET = safeGET jsonResponse (pure Null)
+        jsonGET = safeGET jsonConvert (pure Null)
     in (runExceptT . withExceptT ResponseError)
        (liftA2 VDPResponse (jsonGET schemaurl) (jsonGET dataurl))
 

@@ -84,6 +84,9 @@ instance IsString ResponseError where
     fromString = ResponseError
 
 
+newtype URL = URL { getURL :: String } deriving Generic
+
+
 data Schema a = Schema
     {
         _vdp :: a
