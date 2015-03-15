@@ -34,6 +34,7 @@ library
         bytestring >= 0.10.4.0,
         wreq >= 0.3.0.1,
         -- https://www.fpcomplete.com/school/using-fphc/recommended-libraries
+        exceptions >= 0.8,
         enclosed-exceptions >= 1.0.1,
         system-filepath >= 0.4.13,
         system-fileio >= 0.3.16
