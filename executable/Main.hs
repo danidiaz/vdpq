@@ -31,6 +31,7 @@ defaultPlanFile = "plan.json"
 type Errors r = Either Timeout (Either ResponseError r)
 
 type Responses = Schema (Map String (Errors VDPResponse))
+                        (Map String (Errors JSONResponse))
 
 performQueries :: Int -> Seconds -> Plan -> IO Responses 
 performQueries semsize seconds plan = do
@@ -42,6 +43,7 @@ performQueries semsize seconds plan = do
                 withLog names name .
                 withTimeout seconds
             decoratorSchema = Schema
+                decoratorFunc
                 decoratorFunc
         runConcurrently $
             decoratorSchema
@@ -58,6 +60,7 @@ diffReport oldr newr =
   where
     zipFunc = intersectionWith Pair
     zipSchema = Schema
+        zipFunc 
         zipFunc 
 
 data Command = 

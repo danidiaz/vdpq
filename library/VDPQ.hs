@@ -50,6 +50,7 @@ examplePlan = Schema
         , ("q2", VDPQuery "barview" Nothing Nothing) 
         ]
     )
+    (Data.Map.Strict.fromList [])
 
 vdpQueryDefault :: VDPServer -> VDPQuery Maybe -> VDPQuery Identity 
 vdpQueryDefault dt = over targetVDP (Identity . maybe dt id)
@@ -107,6 +108,7 @@ buildVDPURLPair query = ((schemaurl, schemaopts), (dataurl, dataopts))
 
 class Reportable a where
     getReport :: a -> [String]
+    getReport = const []
 
 instance (Bifoldable f, Reportable a, Reportable b) => Reportable (f a b) where
     getReport = bifoldMap getReport getReport 
@@ -117,6 +119,8 @@ instance Reportable VDPResponse where
             Null -> ("Empty result.") : []
             _ -> []
 
+instance Reportable JSONResponse 
+
 instance Reportable Timeout where 
     getReport _ = ("Timeout.") : []
 
@@ -126,13 +130,15 @@ instance Reportable ResponseError where
 instance Reportable String where 
     getReport str = [str]
 
-reportSchema :: (FoldableWithIndex String f, Reportable a) 
-             => Schema (f a)
+reportSchema :: (FoldableWithIndex String f, Reportable a, Reportable b) 
+             => Schema (f a) (f b)
              -> [((String,String),[String])]
 reportSchema response = 
-    let foldFunc = \name -> ifoldMap $ \test ->
+    let foldFunc :: (Reportable a, FoldableWithIndex String f) => String -> f a ->  [((String,String),[String])]
+        foldFunc = \name -> ifoldMap $ \test ->
            pure . (,) (name,test) . getReport 
         reportSchema = Schema
+            foldFunc        
             foldFunc        
     in reportSchema `apSchema` namesSchema `foldMapSchema` response   
     
@@ -168,3 +174,5 @@ instance Diffable Timeout
 instance Diffable ResponseError
 
 instance Diffable VDPResponse
+
+instance Diffable JSONResponse

@@ -136,11 +136,13 @@ withConc sem f = \i a -> Concurrently
 type Executor = Schema (String -> 
                         VDPQuery Identity -> 
                         IO (Either ResponseError VDPResponse))
-
+                       (String ->
+                        URL ->
+                        IO (Either ResponseError JSONResponse))
 executorSchema :: Executor
 executorSchema = Schema
     (\_ -> runVDPQuery)
-
+    (\_ url -> runExceptT (withExceptT ResponseError (safeGET jsonConvert (throwE "empty response") (getURL url, W.defaults))))
 
 class ToFolder t where
     writeToFolder :: F.FilePath -> t -> IO ()
@@ -199,9 +201,17 @@ instance ToFolder VDPResponse where
         let (sf,df) = vdpResponseFileNames 
         in writeJSON s (path <> sf) >> writeJSON d (path <> df) 
 
+instance ToFolder JSONResponse where
+    writeToFolder path (JSONResponse s) =  
+        writeJSON s (path <> "response.json")
+
 instance FromFolder VDPResponse where
     readFromFolder path = let (sf,df) = vdpResponseFileNames in
          VDPResponse <$> loadJSON (path <> sf) <*> loadJSON (path <> df)    
+
+instance FromFolder JSONResponse where
+    readFromFolder path = 
+         JSONResponse <$> loadJSON (path <> "response.json") 
 
 instance (ToFolder a) => ToFolder (Map String a) where
     writeToFolder path m =  
@@ -220,7 +230,7 @@ instance (FromFolder a) => FromFolder (Map String a) where
         return (Data.Map.fromList pairs)
 
 
-instance (ToFolder a) => ToFolder (Schema a) where
+instance (ToFolder a, ToFolder b) => ToFolder (Schema a b) where
     writeToFolder path s = do
        let calcPath = (<>) path . fromString 
            pathSchema = uniformSchema calcPath `apSchema` namesSchema
@@ -228,14 +238,16 @@ instance (ToFolder a) => ToFolder (Schema a) where
        _ <- traverseSchema (uniformSchema writeFunc) pathSchema 
        let writeSchema = Schema
               writeToFolder 
+              writeToFolder 
        _ <- traverseSchema (writeSchema `apSchema` pathSchema) s
        return ()
             
 
-instance (FromFolder a) => FromFolder (Schema a) where
+instance (FromFolder a, FromFolder b) => FromFolder (Schema a b) where
     readFromFolder path = do
         let readFunc name = readFromFolder (path <> fromString name)  
             readerSchema = Schema
+                readFunc
                 readFunc
         traverseSchema readerSchema namesSchema
         

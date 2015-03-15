@@ -77,6 +77,13 @@ data VDPResponse = VDPResponse
 
 $(makeLenses ''VDPResponse)
 
+newtype JSONResponse = JSONResponse { getJSONReponse :: Value  } deriving (Show,Eq,Typeable,Generic)
+
+instance FromJSON JSONResponse where
+    parseJSON = genericParseJSON aesonOptions
+
+instance ToJSON JSONResponse where
+    toJSON = genericToJSON aesonOptions
 
 newtype ResponseError = ResponseError String deriving (Show,Eq,Typeable)
 
@@ -86,10 +93,16 @@ instance IsString ResponseError where
 
 newtype URL = URL { getURL :: String } deriving Generic
 
+instance FromJSON URL where
+    parseJSON = genericParseJSON aesonOptions
 
-data Schema a = Schema
+instance ToJSON URL where
+    toJSON = genericToJSON aesonOptions
+
+data Schema a b = Schema
     {
         _vdp :: a
+    ,   _json :: b
     } 
     deriving (Generic, Show)
 
@@ -97,31 +110,35 @@ $(makeLenses ''Schema)
 
 
 -- Boilerplate time !!!!!
-uniformSchema :: a -> Schema a 
-uniformSchema a = Schema a
+uniformSchema :: a -> Schema a a
+uniformSchema a = Schema a a
 
 traverseSchema :: (Applicative f) 
                => Schema (a -> f a')
-               -> Schema a
-               -> f (Schema a')
-traverseSchema (Schema fa) (Schema ta) = Schema <$> fa ta
+                         (b -> f b')
+               -> Schema a b 
+               -> f (Schema a' b')
+traverseSchema (Schema fa fb) (Schema ta tb) = Schema <$> fa ta <*> fb tb
 
 apSchema :: Schema (a -> a')
-         -> Schema a
-         -> Schema a'
-apSchema (Schema fa) (Schema a) = Schema (fa a)
+                   (b -> b')
+         -> Schema a b
+         -> Schema a' b'
+apSchema (Schema fa fb) (Schema a b) = Schema (fa a) (fb b)
 
 foldMapSchema :: (Monoid m) 
               => Schema (a -> m)
-              -> Schema a
+                        (b -> m)
+              -> Schema a b
               -> m
-foldMapSchema (Schema fa) (Schema a) = fa a 
+foldMapSchema (Schema fa fb) (Schema a b) = fa a <> fb b
 
-namesSchema :: Schema String
-namesSchema = Schema "vdp"
+namesSchema :: Schema String String
+namesSchema = Schema "vdp" "json"
 -- boilerplate end.
 
 type Plan_ = Schema (Map String (VDPQuery Maybe))
+                    (Map String URL)
 
 instance FromJSON Plan_ where
     parseJSON = genericParseJSON aesonOptions
@@ -130,6 +147,7 @@ instance ToJSON Plan_ where
     toJSON = genericToJSON aesonOptions
 
 type Plan = Schema (Map String (VDPQuery Identity))
+                   (Map String URL)
 
 data Timeout = Timeout deriving (Show,Eq,Typeable)
 
