@@ -80,12 +80,12 @@ loadPlan  = loadJSON
 --      connection error
 --      non-200, non-204 return codes
 --      decoding error
-safeGET :: (String, W.Options) ->  ExceptT String IO Value
-safeGET (url,opts) =  do
+safeGET :: ExceptT String IO Value -> (String, W.Options) ->  ExceptT String IO Value
+safeGET n204 (url,opts) =  do
     r <- tryAnyS (W.getWith opts url) 
     let status = view (W.responseStatus.W.statusCode) r
-    if status == 204
-        then return Null
+    if status == 204 -- is empty repsonse?
+        then n204
         else do
             (unless (status == 200) . throwE) 
                 ("Received HTTP status code: " <> show status)
@@ -96,8 +96,9 @@ safeGET (url,opts) =  do
 runVDPQuery :: VDPQuery Identity -> IO (Either ResponseError VDPResponse)
 runVDPQuery query = 
     let (schemaurl,dataurl) = buildVDPURLPair query
+        n204 = pure Null
     in (runExceptT . withExceptT ResponseError)
-       (liftA2 VDPResponse (safeGET schemaurl) (safeGET dataurl))
+       (liftA2 VDPResponse (safeGET n204 schemaurl) (safeGET n204 dataurl))
 
 newtype Seconds = Seconds Int
 
