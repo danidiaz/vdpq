@@ -19,5 +19,7 @@
             "viewName": "release",
             "whereClause": "id < 10"
         }
+    },
+    "json": {
     }
 }

@@ -121,6 +121,8 @@ instance Reportable VDPResponse where
 
 instance Reportable JSONResponse 
 
+instance Reportable XMLResponse 
+
 instance Reportable Timeout where 
     getReport _ = ("Timeout.") : []
 
@@ -176,3 +178,5 @@ instance Diffable ResponseError
 instance Diffable VDPResponse
 
 instance Diffable JSONResponse
+
+instance Diffable XMLResponse

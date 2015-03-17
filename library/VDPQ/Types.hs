@@ -15,6 +15,7 @@ import Data.Aeson
 import Data.String
 import Data.Typeable
 import Data.Aeson.Types
+import Text.XML
 
 import Control.Applicative
 import Control.Lens
@@ -85,6 +86,8 @@ instance FromJSON JSONResponse where
 instance ToJSON JSONResponse where
     toJSON = genericToJSON aesonOptions
 
+newtype XMLResponse = XMLResponse { getXMLReponse :: Document  } deriving (Show,Eq,Typeable)
+
 newtype ResponseError = ResponseError String deriving (Show,Eq,Typeable)
 
 instance IsString ResponseError where
@@ -110,6 +113,7 @@ $(makeLenses ''Schema)
 
 
 -- Boilerplate time !!!!!
+-- I *really* should use something like Vinyl for this...
 uniformSchema :: a -> Schema a a
 uniformSchema a = Schema a a
 
