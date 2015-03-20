@@ -51,6 +51,7 @@ examplePlan = Schema
         ]
     )
     (Data.Map.Strict.fromList [])
+    (Data.Map.Strict.fromList [])
 
 vdpQueryDefault :: VDPServer -> VDPQuery Maybe -> VDPQuery Identity 
 vdpQueryDefault dt = over targetVDP (Identity . maybe dt id)
@@ -132,14 +133,15 @@ instance Reportable ResponseError where
 instance Reportable String where 
     getReport str = [str]
 
-reportSchema :: (FoldableWithIndex String f, Reportable a, Reportable b) 
-             => Schema (f a) (f b)
+reportSchema :: (FoldableWithIndex String f, Reportable a, Reportable b, Reportable c) 
+             => Schema (f a) (f b) (f c)
              -> [((String,String),[String])]
 reportSchema response = 
     let foldFunc :: (Reportable a, FoldableWithIndex String f) => String -> f a ->  [((String,String),[String])]
         foldFunc = \name -> ifoldMap $ \test ->
            pure . (,) (name,test) . getReport 
         reportSchema = Schema
+            foldFunc        
             foldFunc        
             foldFunc        
     in reportSchema `apSchema` namesSchema `foldMapSchema` response   

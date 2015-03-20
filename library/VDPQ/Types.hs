@@ -102,10 +102,11 @@ instance FromJSON URL where
 instance ToJSON URL where
     toJSON = genericToJSON aesonOptions
 
-data Schema a b = Schema
+data Schema a b c = Schema
     {
         _vdp :: a
     ,   _json :: b
+    ,   _xml :: c
     } 
     deriving (Generic, Show)
 
@@ -114,34 +115,38 @@ $(makeLenses ''Schema)
 
 -- Boilerplate time !!!!!
 -- I *really* should use something like Vinyl for this...
-uniformSchema :: a -> Schema a a
-uniformSchema a = Schema a a
+uniformSchema :: a -> Schema a a a
+uniformSchema a = Schema a a a
 
 traverseSchema :: (Applicative f) 
                => Schema (a -> f a')
                          (b -> f b')
-               -> Schema a b 
-               -> f (Schema a' b')
-traverseSchema (Schema fa fb) (Schema ta tb) = Schema <$> fa ta <*> fb tb
+                         (c -> f c')
+               -> Schema a b c
+               -> f (Schema a' b' c')
+traverseSchema (Schema fa fb fc) (Schema ta tb tc) = Schema <$> fa ta <*> fb tb <*> fc tc
 
 apSchema :: Schema (a -> a')
                    (b -> b')
-         -> Schema a b
-         -> Schema a' b'
-apSchema (Schema fa fb) (Schema a b) = Schema (fa a) (fb b)
+                   (c -> c')
+         -> Schema a b c
+         -> Schema a' b' c'
+apSchema (Schema fa fb fc) (Schema a b c) = Schema (fa a) (fb b) (fc c)
 
 foldMapSchema :: (Monoid m) 
               => Schema (a -> m)
                         (b -> m)
-              -> Schema a b
+                        (c -> m)
+              -> Schema a b c
               -> m
-foldMapSchema (Schema fa fb) (Schema a b) = fa a <> fb b
+foldMapSchema (Schema fa fb fc) (Schema a b c) = fa a <> fb b <> fc c
 
-namesSchema :: Schema String String
-namesSchema = Schema "vdp" "json"
+namesSchema :: Schema String String String
+namesSchema = Schema "vdp" "json" "xml"
 -- boilerplate end.
 
 type Plan_ = Schema (Map String (VDPQuery Maybe))
+                    (Map String URL)
                     (Map String URL)
 
 instance FromJSON Plan_ where
@@ -151,6 +156,7 @@ instance ToJSON Plan_ where
     toJSON = genericToJSON aesonOptions
 
 type Plan = Schema (Map String (VDPQuery Identity))
+                   (Map String URL)
                    (Map String URL)
 
 data Timeout = Timeout deriving (Show,Eq,Typeable)
