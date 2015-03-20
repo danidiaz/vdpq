@@ -39,7 +39,8 @@ library
         -- https://www.fpcomplete.com/school/using-fphc/recommended-libraries
         enclosed-exceptions >= 1.0.1,
         system-filepath >= 0.4.13,
-        system-fileio >= 0.3.16
+        system-fileio >= 0.3.16,
+        stomp-queue >= 0.2.0
 
     exposed-modules:
         VDPQ
