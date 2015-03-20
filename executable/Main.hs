@@ -33,6 +33,7 @@ type Errors r = Either Timeout (Either ResponseError r)
 type Responses = Schema (Map String (Errors VDPResponse))
                         (Map String (Errors JSONResponse))
                         (Map String (Errors XMLResponse))
+                        (Map String (Errors XMLResponse))
 
 performQueries :: Int -> Seconds -> Plan -> IO Responses 
 performQueries semsize seconds plan = do
@@ -44,6 +45,7 @@ performQueries semsize seconds plan = do
                 withLog names name .
                 withTimeout seconds
             decoratorSchema = Schema
+                decoratorFunc
                 decoratorFunc
                 decoratorFunc
                 decoratorFunc
@@ -62,6 +64,7 @@ diffReport oldr newr =
   where
     zipFunc = intersectionWith Pair
     zipSchema = Schema
+        zipFunc 
         zipFunc 
         zipFunc 
         zipFunc 

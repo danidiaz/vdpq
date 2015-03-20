@@ -102,11 +102,12 @@ instance FromJSON URL where
 instance ToJSON URL where
     toJSON = genericToJSON aesonOptions
 
-data Schema a b c = Schema
+data Schema a b c d = Schema
     {
         _vdp :: a
     ,   _json :: b
     ,   _xml :: c
+    ,   _rss :: d
     } 
     deriving (Generic, Show)
 
@@ -115,37 +116,41 @@ $(makeLenses ''Schema)
 
 -- Boilerplate time !!!!!
 -- I *really* should use something like Vinyl for this...
-uniformSchema :: a -> Schema a a a
-uniformSchema a = Schema a a a
+uniformSchema :: a -> Schema a a a a
+uniformSchema a = Schema a a a a
 
 traverseSchema :: (Applicative f) 
                => Schema (a -> f a')
                          (b -> f b')
                          (c -> f c')
-               -> Schema a b c
-               -> f (Schema a' b' c')
-traverseSchema (Schema fa fb fc) (Schema ta tb tc) = Schema <$> fa ta <*> fb tb <*> fc tc
+                         (d -> f d')
+               -> Schema a b c d
+               -> f (Schema a' b' c' d')
+traverseSchema (Schema fa fb fc fd) (Schema ta tb tc td) = Schema <$> fa ta <*> fb tb <*> fc tc <*> fd td
 
 apSchema :: Schema (a -> a')
                    (b -> b')
                    (c -> c')
-         -> Schema a b c
-         -> Schema a' b' c'
-apSchema (Schema fa fb fc) (Schema a b c) = Schema (fa a) (fb b) (fc c)
+                   (d -> d')
+         -> Schema a b c d
+         -> Schema a' b' c' d'
+apSchema (Schema fa fb fc fd) (Schema a b c d) = Schema (fa a) (fb b) (fc c) (fd d)
 
 foldMapSchema :: (Monoid m) 
               => Schema (a -> m)
                         (b -> m)
                         (c -> m)
-              -> Schema a b c
+                        (d -> m)
+              -> Schema a b c d
               -> m
-foldMapSchema (Schema fa fb fc) (Schema a b c) = fa a <> fb b <> fc c
+foldMapSchema (Schema fa fb fc fd) (Schema a b c d) = fa a <> fb b <> fc c <> fd d
 
-namesSchema :: Schema String String String
-namesSchema = Schema "vdp" "json" "xml"
+namesSchema :: Schema String String String String
+namesSchema = Schema "vdp" "json" "xml" "rss"
 -- boilerplate end.
 
 type Plan_ = Schema (Map String (VDPQuery Maybe))
+                    (Map String URL)
                     (Map String URL)
                     (Map String URL)
 
@@ -156,6 +161,7 @@ instance ToJSON Plan_ where
     toJSON = genericToJSON aesonOptions
 
 type Plan = Schema (Map String (VDPQuery Identity))
+                   (Map String URL)
                    (Map String URL)
                    (Map String URL)
 

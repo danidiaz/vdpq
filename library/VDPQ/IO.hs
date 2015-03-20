@@ -144,10 +144,12 @@ type ExecutorF query response = String -> query -> IO (Either ResponseError resp
 type Executor = Schema (ExecutorF (VDPQuery Identity) VDPResponse)
                        (ExecutorF URL JSONResponse)
                        (ExecutorF URL XMLResponse)
+                       (ExecutorF URL XMLResponse)
 executorSchema :: Executor
 executorSchema = Schema
     (\_ -> runVDPQuery)
     (\_ url -> runExceptT (withExceptT ResponseError (safeGET jsonConvert (throwE "empty response") (getURL url, W.defaults))))
+    (\_ url -> runExceptT (withExceptT ResponseError (fmap XMLResponse (safeGET xmlConvert (throwE "empty response") (getURL url, W.defaults)))))
     (\_ url -> runExceptT (withExceptT ResponseError (fmap XMLResponse (safeGET xmlConvert (throwE "empty response") (getURL url, W.defaults)))))
 
 
@@ -250,7 +252,7 @@ instance (FromFolder a) => FromFolder (Map String a) where
         pairs <- T.mapM mkPair folders
         return (Data.Map.fromList pairs)
 
-instance (ToFolder a, ToFolder b, ToFolder c) => ToFolder (Schema a b c) where
+instance (ToFolder a, ToFolder b, ToFolder c, ToFolder d) => ToFolder (Schema a b c d) where
     writeToFolder path s = do
        let calcPath = (<>) path . fromString 
            pathSchema = uniformSchema calcPath `apSchema` namesSchema
@@ -260,13 +262,15 @@ instance (ToFolder a, ToFolder b, ToFolder c) => ToFolder (Schema a b c) where
               writeToFolder 
               writeToFolder 
               writeToFolder 
+              writeToFolder 
        _ <- traverseSchema (writeSchema `apSchema` pathSchema) s
        return ()
             
-instance (FromFolder a, FromFolder b, FromFolder c) => FromFolder (Schema a b c) where
+instance (FromFolder a, FromFolder b, FromFolder c, FromFolder d) => FromFolder (Schema a b c d) where
     readFromFolder path = do
         let readFunc name = readFromFolder (path <> fromString name)  
             readerSchema = Schema
+                readFunc
                 readFunc
                 readFunc
                 readFunc
