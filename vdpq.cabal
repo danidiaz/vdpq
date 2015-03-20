@@ -36,7 +36,6 @@ library
         xml-conduit >= 1.2.3.3,
         html-conduit >= 1.1.1.1,
         conduit,
-        resourcet,
         -- https://www.fpcomplete.com/school/using-fphc/recommended-libraries
         enclosed-exceptions >= 1.0.1,
         system-filepath >= 0.4.13,

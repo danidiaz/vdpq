@@ -39,7 +39,6 @@ import qualified Data.Traversable as T
 import qualified Data.Text as T
 import qualified Data.ByteString.Lazy as BL
 
-import Control.Monad.Trans.Resource
 import Data.Conduit
 import qualified Data.Conduit.List as CL
 
