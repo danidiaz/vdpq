@@ -52,6 +52,8 @@ import Control.Exception.Enclosed
 
 import qualified Network.Wreq as W
 
+import qualified Text.XML as X
+
 import qualified Filesystem as F
 import qualified Filesystem.Path.CurrentOS as F
 
@@ -144,6 +146,9 @@ executorSchema = Schema
     (\_ -> runVDPQuery)
     (\_ url -> runExceptT (withExceptT ResponseError (safeGET jsonConvert (throwE "empty response") (getURL url, W.defaults))))
 
+
+-- Saving and loading responses from file. 
+--
 class ToFolder t where
     writeToFolder :: F.FilePath -> t -> IO ()
 
@@ -152,7 +157,6 @@ class FromFolder t where
 
 class FromFolder t => InFolder t where
     existsInFolder :: F.FilePath -> Proxy t -> IO Bool
-
 
 instance (ToFolder a, ToFolder b) => ToFolder (Either a b) where
     writeToFolder folder =
@@ -192,7 +196,6 @@ instance FromFolder ResponseError where
 instance InFolder ResponseError where
     existsInFolder path _ = F.isFile (path <> errorFileName)
 
-
 vdpResponseFileNames :: (F.FilePath,F.FilePath)
 vdpResponseFileNames = ("vdp.schema.json","vdp.data.json")
 
@@ -201,17 +204,31 @@ instance ToFolder VDPResponse where
         let (sf,df) = vdpResponseFileNames 
         in writeJSON s (path <> sf) >> writeJSON d (path <> df) 
 
-instance ToFolder JSONResponse where
-    writeToFolder path (JSONResponse s) =  
-        writeJSON s (path <> "response.json")
-
 instance FromFolder VDPResponse where
     readFromFolder path = let (sf,df) = vdpResponseFileNames in
          VDPResponse <$> loadJSON (path <> sf) <*> loadJSON (path <> df)    
 
+jsonResponseFileName :: F.FilePath
+jsonResponseFileName = "response.json"
+
+instance ToFolder JSONResponse where
+    writeToFolder path (JSONResponse s) =  
+        writeJSON s (path <> jsonResponseFileName) 
+
 instance FromFolder JSONResponse where
     readFromFolder path = 
-         JSONResponse <$> loadJSON (path <> "response.json") 
+         JSONResponse <$> loadJSON (path <> jsonResponseFileName) 
+
+xmlResponseFileName :: F.FilePath
+xmlResponseFileName = "response.xml"
+
+instance ToFolder XMLResponse where
+    writeToFolder path (XMLResponse s) =  
+        X.writeFile X.def (path <> xmlResponseFileName) s
+
+instance FromFolder XMLResponse where
+    readFromFolder path = 
+         XMLResponse <$> X.readFile X.def (path <> xmlResponseFileName) 
 
 instance (ToFolder a) => ToFolder (Map String a) where
     writeToFolder path m =  
@@ -229,7 +246,6 @@ instance (FromFolder a) => FromFolder (Map String a) where
         pairs <- T.mapM mkPair folders
         return (Data.Map.fromList pairs)
 
-
 instance (ToFolder a, ToFolder b) => ToFolder (Schema a b) where
     writeToFolder path s = do
        let calcPath = (<>) path . fromString 
@@ -242,7 +258,6 @@ instance (ToFolder a, ToFolder b) => ToFolder (Schema a b) where
        _ <- traverseSchema (writeSchema `apSchema` pathSchema) s
        return ()
             
-
 instance (FromFolder a, FromFolder b) => FromFolder (Schema a b) where
     readFromFolder path = do
         let readFunc name = readFromFolder (path <> fromString name)  
@@ -250,7 +265,8 @@ instance (FromFolder a, FromFolder b) => FromFolder (Schema a b) where
                 readFunc
                 readFunc
         traverseSchema readerSchema namesSchema
-        
+--        
+--
 
 writeReport :: [((String,String),[String])] -> IO ()
 writeReport entries =   
