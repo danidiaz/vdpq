@@ -25,6 +25,7 @@ module VDPQ.IO
 import VDPQ
 
 import Data.Bifoldable
+import Data.Bifunctor
 import Data.List
 import Data.Monoid
 import Data.Map
@@ -97,6 +98,9 @@ safeGET convert n204 (url,opts) =  do
 jsonConvert :: FromJSON a => W.Response BL.ByteString -> Either String a 
 jsonConvert = bimap show (view W.responseBody) . W.asJSON
 
+xmlConvert :: W.Response BL.ByteString -> Either String X.Document
+xmlConvert = first show . X.parseLBS X.def . view W.responseBody
+
 runVDPQuery :: VDPQuery Identity -> IO (Either ResponseError VDPResponse)
 runVDPQuery query = 
     let (schemaurl,dataurl) = buildVDPURLPair query
@@ -135,12 +139,10 @@ withConc :: QSem -> (i -> a -> IO b) -> (i -> a -> Concurrently b)
 withConc sem f = \i a -> Concurrently 
     (bracket_ (waitQSem sem) (signalQSem sem) (f i a))
 
-type Executor = Schema (String -> 
-                        VDPQuery Identity -> 
-                        IO (Either ResponseError VDPResponse))
-                       (String ->
-                        URL ->
-                        IO (Either ResponseError JSONResponse))
+type ExecutorF query response = String -> query -> IO (Either ResponseError response)
+
+type Executor = Schema (ExecutorF (VDPQuery Identity) VDPResponse)
+                       (ExecutorF URL JSONResponse)
 executorSchema :: Executor
 executorSchema = Schema
     (\_ -> runVDPQuery)
