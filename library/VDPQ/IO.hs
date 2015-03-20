@@ -39,6 +39,10 @@ import qualified Data.Traversable as T
 import qualified Data.Text as T
 import qualified Data.ByteString.Lazy as BL
 
+import Control.Monad.Trans.Resource
+import Data.Conduit
+import qualified Data.Conduit.List as CL
+
 import Control.Concurrent
 import Control.Applicative
 import Control.Monad
@@ -54,6 +58,7 @@ import Control.Exception.Enclosed
 import qualified Network.Wreq as W
 
 import qualified Text.XML as X
+import qualified Text.HTML.DOM as H
 
 import qualified Filesystem as F
 import qualified Filesystem.Path.CurrentOS as F
@@ -100,6 +105,11 @@ jsonConvert = bimap show (view W.responseBody) . W.asJSON
 
 xmlConvert :: W.Response BL.ByteString -> Either String X.Document
 xmlConvert = first show . X.parseLBS X.def . view W.responseBody
+
+htmlConvert :: W.Response BL.ByteString -> Either String X.Document
+htmlConvert r = let lbs = view W.responseBody r in
+    first show (CL.sourceList (BL.toChunks lbs) $$ H.sinkDoc)
+
 
 runVDPQuery :: VDPQuery Identity -> IO (Either ResponseError VDPResponse)
 runVDPQuery query = 
