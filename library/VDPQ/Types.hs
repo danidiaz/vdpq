@@ -102,12 +102,13 @@ instance FromJSON URL where
 instance ToJSON URL where
     toJSON = genericToJSON aesonOptions
 
-data Schema a b c d = Schema
+data Schema a b c d e = Schema
     {
         _vdp :: a
     ,   _json :: b
     ,   _xml :: c
     ,   _rss :: d
+    ,   _html :: e
     } 
     deriving (Generic, Show)
 
@@ -116,40 +117,44 @@ $(makeLenses ''Schema)
 
 -- Boilerplate time !!!!!
 -- I *really* should use something like Vinyl for this...
-uniformSchema :: a -> Schema a a a a
-uniformSchema a = Schema a a a a
+uniformSchema :: a -> Schema a a a a a
+uniformSchema a = Schema a a a a a
 
 traverseSchema :: (Applicative f) 
                => Schema (a -> f a')
                          (b -> f b')
                          (c -> f c')
                          (d -> f d')
-               -> Schema a b c d
-               -> f (Schema a' b' c' d')
-traverseSchema (Schema fa fb fc fd) (Schema ta tb tc td) = Schema <$> fa ta <*> fb tb <*> fc tc <*> fd td
+                         (e -> f e')
+               -> Schema a b c d e
+               -> f (Schema a' b' c' d' e')
+traverseSchema (Schema fa fb fc fd fe) (Schema ta tb tc td te) = Schema <$> fa ta <*> fb tb <*> fc tc <*> fd td <*> fe te
 
 apSchema :: Schema (a -> a')
                    (b -> b')
                    (c -> c')
                    (d -> d')
-         -> Schema a b c d
-         -> Schema a' b' c' d'
-apSchema (Schema fa fb fc fd) (Schema a b c d) = Schema (fa a) (fb b) (fc c) (fd d)
+                   (e -> e')
+         -> Schema a b c d e
+         -> Schema a' b' c' d' e'
+apSchema (Schema fa fb fc fd fe) (Schema a b c d e) = Schema (fa a) (fb b) (fc c) (fd d) (fe e)
 
 foldMapSchema :: (Monoid m) 
               => Schema (a -> m)
                         (b -> m)
                         (c -> m)
                         (d -> m)
-              -> Schema a b c d
+                        (e -> m)
+              -> Schema a b c d e
               -> m
-foldMapSchema (Schema fa fb fc fd) (Schema a b c d) = fa a <> fb b <> fc c <> fd d
+foldMapSchema (Schema fa fb fc fd fe) (Schema a b c d e) = fa a <> fb b <> fc c <> fd d <> fe e
 
-namesSchema :: Schema String String String String
-namesSchema = Schema "vdp" "json" "xml" "rss"
+namesSchema :: Schema String String String String String
+namesSchema = Schema "vdp" "json" "xml" "rss" "html"
 -- boilerplate end.
 
 type Plan_ = Schema (Map String (VDPQuery Maybe))
+                    (Map String URL)
                     (Map String URL)
                     (Map String URL)
                     (Map String URL)
@@ -161,6 +166,7 @@ instance ToJSON Plan_ where
     toJSON = genericToJSON aesonOptions
 
 type Plan = Schema (Map String (VDPQuery Identity))
+                   (Map String URL)
                    (Map String URL)
                    (Map String URL)
                    (Map String URL)
